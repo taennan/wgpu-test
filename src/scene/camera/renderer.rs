@@ -26,7 +26,6 @@ impl CameraRenderer {
             .name("Camera Buffer")
             .usages(BufferUsages::VERTEX | BufferUsages::MAP_WRITE | BufferUsages::UNIFORM)
             .build(mem::size_of::<ViewProjection>() as u64, device);
-        //.build_init(&camera.projection_matrix().to_cols_array_2d(), device);
 
         let bind_group_layout = BindGroupLayoutBuilder::new()
             .name("Camera Bind Group Layout")

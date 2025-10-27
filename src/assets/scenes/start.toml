@@ -3,7 +3,7 @@ name = "Start"
 author = "taennan"
 
 [[sprites]]
-size = [0.3, 0.3]
+size = [0.4, 0.4]
 texture_path = "assets/albatross-dark.jpg"
 
 #[tilemap]

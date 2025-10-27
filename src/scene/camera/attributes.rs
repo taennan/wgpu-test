@@ -49,7 +49,7 @@ impl Default for Camera {
 
 impl Camera {
     fn default_position() -> Vec3 {
-        Vec3::X * 10.0
+        Vec3::Z * 10.0
     }
 
     fn default_speed() -> f32 {
@@ -69,7 +69,7 @@ impl Camera {
     }
 
     fn default_field_of_vision_y() -> f32 {
-        45.0
+        45f32.to_radians()
     }
 
     fn default_cutoff_near() -> f32 {
@@ -86,13 +86,13 @@ impl Camera {
 
     pub fn projection_matrix(&self) -> Mat4 {
         let view = Mat4::look_at_rh(self.position.into(), self.target.into(), self.up.into());
-        let projection = Mat4::perspective_rh_gl(
+        let projection = Mat4::perspective_rh(
             self.field_of_vision_y,
             self.aspect,
             self.cutoff_near,
             self.cutoff_far,
         );
 
-        OPENGL_TO_WGPU_MATRIX * projection * view
+        projection * view
     }
 }

@@ -38,7 +38,7 @@ impl SpriteVertexBufferData {
 pub struct SpriteInstanceBufferData {
     pub size: [f32; 2],
     pub position: [f32; 3],
-    //pub texture_division_coords: [u32; 2],
+    pub texture_division_coords: [u32; 2],
 }
 
 impl From<&Sprite> for SpriteInstanceBufferData {
@@ -46,7 +46,7 @@ impl From<&Sprite> for SpriteInstanceBufferData {
         Self {
             size: sprite.size.into(),
             position: sprite.position.into(),
-            //texture_division_coords: sprite.texture_division_coords.into(),
+            texture_division_coords: sprite.texture_division_coords.into(),
         }
     }
 }
@@ -70,13 +70,11 @@ impl SpriteInstanceBufferData {
                 offset: Self::POS_OFFSET,
                 format: VertexFormat::Float32x3,
             },
-            /*
             VertexAttribute {
                 shader_location: 3,
                 offset: Self::COORDS_OFFSET,
                 format: VertexFormat::Uint32x2,
             },
-             */
         ],
     };
 }

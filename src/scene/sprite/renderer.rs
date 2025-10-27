@@ -65,7 +65,6 @@ impl SpriteRenderer {
                         count: None,
                         ty: BindingType::Sampler(SamplerBindingType::Filtering),
                     },
-                    /*
                     BindGroupLayoutEntry {
                         binding: 2,
                         visibility: ShaderStages::VERTEX,
@@ -76,7 +75,6 @@ impl SpriteRenderer {
                             min_binding_size: None,
                         },
                     },
-                     */
                 ],
             });
 
@@ -139,14 +137,12 @@ impl SpriteRenderer {
                     binding: 1,
                     resource: BindingResource::Sampler(&texture.diffuse_sampler),
                 },
-                /*
                 BindGroupEntry {
                     binding: 2,
                     resource: BindingResource::Buffer(
                         texture_divisions_buffer.as_entire_buffer_binding(),
                     ),
                 },
-                 */
             ],
         });
 
