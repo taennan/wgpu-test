@@ -1,6 +1,6 @@
 use crate::{
     app::AppState,
-    systems::{AppSystem, WindowEventContext},
+    systems::{AppSystem, AppSystemContext},
 };
 use winit::{
     event::{ElementState, WindowEvent},
@@ -9,9 +9,19 @@ use winit::{
 
 pub struct TextureToggler;
 
-impl TextureToggler {
-    pub fn new() -> Self {
-        Self
+impl AppSystem for TextureToggler {
+    fn run(&self, ctx: &mut AppSystemContext) {
+        match &*ctx.event {
+            WindowEvent::KeyboardInput { event, .. } => match event.physical_key {
+                PhysicalKey::Code(KeyCode::Digit1) => {
+                    if event.state == ElementState::Released {
+                        self.toggle_texture(&mut ctx.app_state);
+                    }
+                }
+                _ => {}
+            },
+            _ => {}
+        }
     }
 }
 
@@ -38,21 +48,5 @@ impl TextureToggler {
             .unload(&app_state.current_texture_type.to_str());
         app_state.current_texture_type = next_texture_type;
         app_state.window.request_redraw();
-    }
-}
-
-impl AppSystem for TextureToggler {
-    fn handle_window_event(&mut self, ctx: &mut WindowEventContext) {
-        match &ctx.event {
-            WindowEvent::KeyboardInput { event, .. } => match event.physical_key {
-                PhysicalKey::Code(KeyCode::Digit1) => {
-                    if event.state == ElementState::Released {
-                        self.toggle_texture(&mut ctx.app_state);
-                    }
-                }
-                _ => {}
-            },
-            _ => {}
-        }
     }
 }

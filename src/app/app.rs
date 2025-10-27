@@ -1,10 +1,4 @@
-use crate::{
-    app::AppState,
-    systems::{
-        AppCloser, AppSystem, AppSystemManager, CameraMover, TextureToggler, WindowEventContext,
-        WindowRedrawer,
-    },
-};
+use crate::{app::AppState, systems::*};
 use std::sync::Arc;
 use winit::{
     application::ApplicationHandler,
@@ -15,27 +9,33 @@ use winit::{
 
 #[derive(Default)]
 pub struct App {
-    state: Option<AppState>,
-    systems: AppSystemManager,
+    app_state: Option<AppState>,
+    systems_pool: AppSystemPool,
 }
 
 impl App {
     pub fn new() -> Self {
-        let mut systems = AppSystemManager::default();
-        systems.add(AppCloser::new());
-        systems.add(CameraMover::default());
-        systems.add(TextureToggler::new());
-        systems.add(WindowRedrawer::new());
+        let mut systems_pool = AppSystemPool::default();
+        systems_pool.add(KeyMapper);
+        systems_pool.add(AppCloser);
+        systems_pool.add(CameraMover);
+        //systems_pool.add(TextureToggler);
+        systems_pool.add(WindowRedrawer);
 
         Self {
-            state: None,
-            systems,
+            app_state: None,
+            systems_pool,
         }
     }
 }
 
 impl ApplicationHandler for App {
     fn resumed(&mut self, event_loop: &ActiveEventLoop) {
+        // NOTE: Don't know if this is necessary, just putting it here in case re-creating app state causes problems
+        if self.app_state.is_some() {
+            return;
+        }
+
         let window_attributes = Window::default_attributes()
             .with_title("WGPU Test")
             .with_theme(Some(Theme::Dark));
@@ -46,9 +46,8 @@ impl ApplicationHandler for App {
                 .expect("Failed to get window"),
         );
 
-        let state = futures::executor::block_on(AppState::try_new(window))
-            .expect("Failed to init AppState");
-        self.state = Some(state);
+        let state = AppState::try_new("start", window).expect("Failed to init AppState");
+        self.app_state = Some(state);
     }
 
     fn window_event(
@@ -57,27 +56,9 @@ impl ApplicationHandler for App {
         _window_id: WindowId,
         event: WindowEvent,
     ) {
-        if let Some(state) = &mut self.state {
-            let mut event_context = WindowEventContext {
-                event,
-                event_loop: event_loop,
-                app_state: state,
-            };
-            self.systems.handle_window_event(&mut event_context);
+        if let Some(app_state) = &mut self.app_state {
+            self.systems_pool
+                .handle_event(&event, event_loop, app_state);
         }
-        /*
-
-        let state = match &mut self.state {
-            Some(state) => state,
-            None => return,
-        };
-
-        let mut event_context = WindowEventContext {
-            event,
-            event_loop: event_loop,
-            app_state: state,
-        };
-        self.systems.handle_window_event(&mut event_context);
-        */
     }
 }

@@ -1,0 +1,14 @@
+[meta]
+name = "Start"
+author = "taennan"
+
+[[sprites]]
+size = [0.3, 0.3]
+texture_path = "assets/albatross-dark.jpg"
+
+#[tilemap]
+#texture_path = "assets/tilemap.png"
+
+#[[tilemap.chunks]]
+#position = [0, 0, 0]
+#tiles = [0, 0, 1, 2, 65, 2]

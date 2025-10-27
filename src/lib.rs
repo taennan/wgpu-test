@@ -1,28 +1,26 @@
 mod app;
 mod error;
 mod graphics;
-mod surface;
+mod scene;
 mod systems;
 mod utils;
-mod vertex;
 
 use app::App;
 use dotenv::dotenv;
 use env_logger;
-use winit::event_loop::EventLoop;
+use winit::event_loop::{ControlFlow, EventLoop};
 
 pub fn main() {
     dotenv().ok();
     env_logger::init();
 
-    let event_loop = EventLoop::with_user_event()
-        .build()
-        .expect("Event loop creation failed");
-    let mut app = App::new();
-
     log::info!("Will start wgpu-test");
 
+    let mut app = App::new();
+
+    let event_loop = EventLoop::new().expect("Event loop creation failed");
+    event_loop.set_control_flow(ControlFlow::Poll);
     event_loop.run_app(&mut app).expect("Event loop run failed");
 
-    log::info!("Running wgpu-test");
+    log::info!("Finished running wgpu-test");
 }

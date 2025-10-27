@@ -5,7 +5,7 @@ use std::{
     path::{Path, PathBuf},
     sync::Arc,
 };
-use wgpu::{Device, Queue};
+use wgpu::{Device, Queue, TextureFormat};
 
 pub struct TexturePool {
     textures: HashMap<PathBuf, Texture>,
@@ -22,18 +22,29 @@ impl TexturePool {
         }
     }
 
-    pub fn load<P>(&mut self, image_path: &P) -> Result<()>
+    pub fn load<P>(&mut self, image_path: &P) -> Result<&Texture>
     where
         P: AsRef<Path>,
     {
         let key = self.texture_key(&image_path);
         if self.textures.contains_key(&key) {
-            return Ok(());
+            return Ok(self.get_unchecked(&image_path));
         }
 
         let texture = Texture::load(&key, &self.device, &self.queue)?;
-        self.textures.insert(key, texture.clone());
-        Ok(())
+        self.textures.insert(key, texture);
+
+        Ok(self.get_unchecked(&image_path))
+    }
+
+    fn get_unchecked<P>(&self, image_path: &P) -> &Texture
+    where
+        P: AsRef<Path>,
+    {
+        let key = self.texture_key(image_path);
+        self.textures
+            .get(&key)
+            .expect("Called TexturePool::get_unchecked for an unloaded texture")
     }
 
     fn texture_key<P>(&self, image_path: &P) -> PathBuf

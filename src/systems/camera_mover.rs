@@ -1,50 +1,32 @@
-use crate::systems::{AppSystem, WindowEventContext};
-use cgmath::Vector3;
-use winit::{
-    event::WindowEvent,
-    keyboard::{KeyCode, PhysicalKey},
-};
+use crate::{app::AppState, scene::Camera, systems::AppSystem};
+use glam::Vec3;
+use winit::keyboard::KeyCode;
 
-pub struct CameraMover {
-    speed: f32,
+pub struct CameraMover;
+
+impl AppSystem for CameraMover {
+    fn run(&self, state: &mut AppState) {
+        let camera = &mut state.scene.camera;
+        let speed = camera.speed;
+
+        if state.keys_pressed.contains(&KeyCode::ArrowLeft) {
+            self.move_camera(Vec3::X * -speed, camera);
+        }
+        if state.keys_pressed.contains(&KeyCode::ArrowRight) {
+            self.move_camera(Vec3::X * speed, camera);
+        }
+        if state.keys_pressed.contains(&KeyCode::ArrowUp) {
+            self.move_camera(Vec3::Y * -speed, camera);
+        }
+        if state.keys_pressed.contains(&KeyCode::ArrowDown) {
+            self.move_camera(Vec3::Y * speed, camera);
+        }
+    }
 }
 
 impl CameraMover {
-    pub fn new(speed: f32) -> Self {
-        Self { speed }
-    }
-
-    fn move_camera(&mut self, vector: Vector3<f32>, ctx: &mut WindowEventContext) {
-        ctx.app_state.camera_manager.attributes.position += vector;
-        ctx.app_state.camera_manager.update_staging_buffer();
-    }
-}
-
-impl Default for CameraMover {
-    fn default() -> Self {
-        Self::new(0.1)
-    }
-}
-
-impl AppSystem for CameraMover {
-    fn handle_window_event(&mut self, ctx: &mut WindowEventContext) {
-        match &ctx.event {
-            WindowEvent::KeyboardInput { event, .. } => match event.physical_key {
-                PhysicalKey::Code(KeyCode::ArrowLeft) => {
-                    self.move_camera(Vector3::unit_x() * -self.speed, ctx);
-                }
-                PhysicalKey::Code(KeyCode::ArrowRight) => {
-                    self.move_camera(Vector3::unit_x() * self.speed, ctx);
-                }
-                PhysicalKey::Code(KeyCode::ArrowUp) => {
-                    self.move_camera(Vector3::unit_y() * -self.speed, ctx);
-                }
-                PhysicalKey::Code(KeyCode::ArrowDown) => {
-                    self.move_camera(Vector3::unit_y() * self.speed, ctx);
-                }
-                _ => {}
-            },
-            _ => {}
-        }
+    fn move_camera(&self, vector: Vec3, camera: &mut Camera) {
+        camera.position += vector;
+        //state.camera_manager.update_staging_buffer();
     }
 }

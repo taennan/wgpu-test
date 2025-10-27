@@ -1,41 +1,57 @@
 use crate::{
+    app::AppState,
     error::*,
-    graphics::RenderPass,
-    systems::{AppSystem, WindowEventContext},
+    scene::{SceneRendererEncodeInput, SceneRendererUpdateInput},
+    systems::AppSystem,
 };
-use winit::{dpi::PhysicalSize, event::WindowEvent};
+use wgpu::PollType;
+use winit::{event::WindowEvent, event_loop::ActiveEventLoop};
 
 pub struct WindowRedrawer;
 
-impl WindowRedrawer {
-    pub fn new() -> Self {
-        Self
-    }
-
-    fn resize(&self, ctx: &mut WindowEventContext, size: &PhysicalSize<u32>) {
-        if size.width > 0 && size.height > 0 {
-            ctx.app_state.surface_config.width = size.width;
-            ctx.app_state.surface_config.height = size.height;
-            ctx.app_state
-                .surface
-                .configure(&ctx.app_state.device, &ctx.app_state.surface_config);
-            ctx.app_state.is_surface_configured = true;
+impl AppSystem for WindowRedrawer {
+    fn handle_event<'a>(
+        &self,
+        event: &'a WindowEvent,
+        _event_loop: &'a ActiveEventLoop,
+        app_state: &'a mut AppState,
+    ) {
+        match &event {
+            // NOTE: Removed the size arg from the resize method call just in case the current size can be found via app_state.window.inner_size()
+            WindowEvent::Resized(_) => self.resize(app_state),
+            WindowEvent::RedrawRequested => self.render_or_resize_on_error(app_state),
+            _ => {}
         }
     }
 
-    fn render_or_resize_on_error(&self, ctx: &mut WindowEventContext) {
-        match self.render(ctx) {
+    #[allow(unused)]
+    fn run(&self, state: &mut AppState) {}
+}
+
+impl WindowRedrawer {
+    fn resize(&self, app_state: &mut AppState) {
+        let size = app_state.window.inner_size();
+        if size.width > 0 && size.height > 0 {
+            app_state.surface_config.width = size.width;
+            app_state.surface_config.height = size.height;
+            app_state
+                .surface
+                .configure(&app_state.device, &app_state.surface_config);
+            app_state.is_surface_configured = true;
+        }
+    }
+
+    fn render_or_resize_on_error(&self, app_state: &mut AppState) {
+        match self.render(app_state) {
             Err(Error::Texture(TextureError::Lost) | Error::Texture(TextureError::Outdated)) => {
-                self.resize(ctx, &ctx.app_state.window.inner_size());
+                self.resize(app_state);
             }
             Err(error) => log::error!("Failed to redraw window {:?}", error),
             _ => {}
         }
     }
 
-    fn render(&self, ctx: &mut WindowEventContext) -> Result<()> {
-        let app_state = &mut ctx.app_state;
-
+    fn render(&self, app_state: &mut AppState) -> Result<()> {
         app_state.window.request_redraw();
 
         if !app_state.is_surface_configured {
@@ -62,36 +78,24 @@ impl WindowRedrawer {
                     label: Some("Render Encoder"),
                 });
 
-        let _ = app_state.device.poll(wgpu::PollType::Wait);
+        app_state.scene_renderer.update(SceneRendererUpdateInput {
+            scene: &app_state.scene,
+            textures: &mut app_state.texture_pool,
+            pipelines: &mut app_state.pipeline_pool,
+            device: &app_state.device,
+        });
 
-        app_state.camera_manager.update_main_buffer(&mut encoder);
+        app_state.scene_renderer.encode(SceneRendererEncodeInput {
+            texture_view: &texture_view,
+            pipelines: &mut app_state.pipeline_pool,
+            encoder: &mut encoder,
+        });
 
-        let plain_shape_render_pass = RenderPass::builder()
-            .bind_group(app_state.simple_bind_group.group())
-            .bind_group(app_state.camera_manager.bind_group())
-            .index_buffer(&app_state.index_buffer, app_state.num_indices)
-            .vertex_buffer(&app_state.vertex_buffer)
-            .build(
-                "Plain Shape",
-                &texture_view,
-                app_state.render_pipeline.pipeline(),
-            );
-
-        plain_shape_render_pass.begin(&mut encoder);
+        let _ = app_state.device.poll(PollType::wait_indefinitely());
 
         app_state.queue.submit(std::iter::once(encoder.finish()));
         texture_output.present();
 
         Ok(())
-    }
-}
-
-impl AppSystem for WindowRedrawer {
-    fn handle_window_event(&mut self, ctx: &mut WindowEventContext) {
-        match ctx.event {
-            WindowEvent::Resized(size) => self.resize(ctx, &size),
-            WindowEvent::RedrawRequested => self.render_or_resize_on_error(ctx),
-            _ => {}
-        }
     }
 }
