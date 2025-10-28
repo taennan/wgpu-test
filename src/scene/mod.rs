@@ -1,4 +1,5 @@
 pub mod camera;
+pub mod mesh;
 pub mod scene;
 pub mod simple_shape;
 pub mod sprite;

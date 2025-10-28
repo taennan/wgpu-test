@@ -12,7 +12,7 @@ use wgpu::{
 pub struct SpriteVertexBufferData(u32);
 
 impl SpriteVertexBufferData {
-    pub const DESCRIPTOR: VertexBufferLayout<'static> = VertexBufferLayout {
+    pub const LAYOUT: VertexBufferLayout<'static> = VertexBufferLayout {
         array_stride: mem::size_of::<SpriteVertexBufferData>() as u64,
         step_mode: VertexStepMode::Vertex,
         attributes: &[VertexAttribute {
@@ -56,7 +56,7 @@ impl SpriteInstanceBufferData {
     const POS_OFFSET: u64 = Self::SIZE_OFFSET + VertexFormat::Float32x2.size();
     const COORDS_OFFSET: u64 = Self::POS_OFFSET + VertexFormat::Float32x3.size();
 
-    pub const DESCRIPTOR: VertexBufferLayout<'static> = VertexBufferLayout {
+    pub const LAYOUT: VertexBufferLayout<'static> = VertexBufferLayout {
         array_stride: mem::size_of::<SpriteInstanceBufferData>() as u64,
         step_mode: VertexStepMode::Instance,
         attributes: &[

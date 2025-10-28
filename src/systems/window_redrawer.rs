@@ -1,9 +1,4 @@
-use crate::{
-    app::AppState,
-    error::*,
-    scene::{SceneRendererEncodeInput, SceneRendererUpdateInput},
-    systems::AppSystem,
-};
+use crate::{app::AppState, error::*, systems::AppSystem};
 use wgpu::PollType;
 use winit::{event::WindowEvent, event_loop::ActiveEventLoop};
 
@@ -78,18 +73,16 @@ impl WindowRedrawer {
                     label: Some("Render Encoder"),
                 });
 
-        app_state.scene_renderer.update(SceneRendererUpdateInput {
-            scene: &app_state.scene,
-            textures: &mut app_state.texture_pool,
-            pipelines: &mut app_state.pipeline_pool,
-            device: &app_state.device,
-        });
+        app_state.scene_renderer.update(
+            &app_state.scene,
+            &mut app_state.texture_pool,
+            &mut app_state.pipeline_pool,
+            &app_state.device,
+        );
 
-        app_state.scene_renderer.encode(SceneRendererEncodeInput {
-            texture_view: &texture_view,
-            pipelines: &mut app_state.pipeline_pool,
-            encoder: &mut encoder,
-        });
+        app_state
+            .scene_renderer
+            .render(&texture_view, &mut encoder, &mut app_state.pipeline_pool);
 
         let _ = app_state.device.poll(PollType::wait_indefinitely());
 

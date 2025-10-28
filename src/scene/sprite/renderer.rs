@@ -1,24 +1,26 @@
 use super::buffer_data::{SpriteInstanceBufferData, SpriteVertexBufferData};
 use crate::{
     graphics::{
-        RenderPass,
         buffer::mut_buffer::MutBuffer,
-        pipeline::{CreatePipelineInput, PipelinePool},
+        pipeline::{CreatePipelineInput, PipelinePool, RenderPassDrawer},
         texture::TexturePool,
     },
     scene::{Sprite, camera::CameraRenderer},
     utils::paths,
 };
-use std::{path::PathBuf, sync::LazyLock};
+use std::{
+    path::{Path, PathBuf},
+    sync::LazyLock,
+};
 use wgpu::{
     BindGroup, BindGroupDescriptor, BindGroupEntry, BindGroupLayout, BindGroupLayoutDescriptor,
     BindGroupLayoutEntry, BindingResource, BindingType, Buffer, BufferBindingType, BufferUsages,
-    CommandEncoder, Device, SamplerBindingType, ShaderStages, TextureSampleType, TextureView,
-    TextureViewDimension,
+    Device, RenderPass, SamplerBindingType, ShaderStages, TextureSampleType, TextureViewDimension,
     util::{BufferInitDescriptor, DeviceExt},
 };
 
 pub struct SpriteRenderer {
+    texture_path: PathBuf,
     bind_group: BindGroup,
     vertex_buffer: Buffer,
     instance_buffer: MutBuffer,
@@ -30,21 +32,13 @@ pub struct SpriteRendererUpdateInput<'a> {
     pub sprites: &'a [&'a Sprite],
 }
 
-pub struct SpriteRendererRenderInput<'a> {
-    pub camera_bind_group: &'a BindGroup,
-    pub texture_view: &'a TextureView,
-    pub encoder: &'a mut CommandEncoder,
-    pub pipelines: &'a PipelinePool,
-}
-
 impl SpriteRenderer {
     const PIPELINE_KEY: LazyLock<PathBuf> = LazyLock::new(|| paths::shader("sprite"));
 
-    pub fn bind_group_layouts<'a>(
-        camera_renderer: &'a CameraRenderer,
+    pub fn bind_group_layouts(
+        camera_renderer: &CameraRenderer,
         device: &Device,
-    ) -> (&'a BindGroupLayout, BindGroupLayout) {
-        let camera_bind_group_layout = camera_renderer.bind_group_layout();
+    ) -> [BindGroupLayout; 2] {
         let texture_bind_group_layout =
             device.create_bind_group_layout(&BindGroupLayoutDescriptor {
                 label: Some("Sprite Bind Group Layout"),
@@ -78,7 +72,10 @@ impl SpriteRenderer {
                 ],
             });
 
-        (camera_bind_group_layout, texture_bind_group_layout)
+        [
+            camera_renderer.bind_group_layout().clone(),
+            texture_bind_group_layout,
+        ]
     }
 
     pub fn new(
@@ -90,17 +87,18 @@ impl SpriteRenderer {
     ) -> Self {
         let base_sprite = sprites[0];
 
+        log::debug!("Creating new renderer for {:?}", base_sprite.texture_path);
+
         let pipeline_key = &*Self::PIPELINE_KEY;
         let pipeline_data = match pipelines.get(pipeline_key) {
             Some(existing) => existing,
             _ => {
-                let bind_group_layouts = Self::bind_group_layouts(camera_renderer, device);
                 let pipeline_input = CreatePipelineInput {
                     shader_path: pipeline_key,
-                    bind_group_layouts: &[bind_group_layouts.0.clone(), bind_group_layouts.1],
+                    bind_group_layouts: &Self::bind_group_layouts(camera_renderer, device),
                     vertex_buffer_layouts: &[
-                        SpriteVertexBufferData::DESCRIPTOR,
-                        SpriteInstanceBufferData::DESCRIPTOR,
+                        SpriteVertexBufferData::LAYOUT,
+                        SpriteInstanceBufferData::LAYOUT,
                     ],
                 };
 
@@ -151,6 +149,7 @@ impl SpriteRenderer {
         let total_rendered = sprites.len();
 
         Self {
+            texture_path: base_sprite.texture_path.clone(),
             bind_group,
             vertex_buffer,
             instance_buffer,
@@ -175,6 +174,10 @@ impl SpriteRenderer {
             .collect()
     }
 
+    pub fn texture_path(&self) -> &Path {
+        &self.texture_path
+    }
+
     pub fn update(&mut self, input: SpriteRendererUpdateInput) {
         let total_to_render = input.sprites.len();
         let should_recreate_buffer = total_to_render != self.total_rendered;
@@ -185,6 +188,7 @@ impl SpriteRenderer {
         }
 
         let instance_buffer_data = Self::instance_buffer_data(input.sprites);
+
         self.instance_buffer.write_async(
             &instance_buffer_data,
             || {},
@@ -192,16 +196,23 @@ impl SpriteRenderer {
         );
     }
 
-    pub fn render(&self, input: SpriteRendererRenderInput) {
-        let pipeline_data = input.pipelines.get_unchecked(&*Self::PIPELINE_KEY);
-        let render_pass = RenderPass::builder()
-            .bind_group(input.camera_bind_group)
+    pub fn render<'a, 'b>(
+        &'a self,
+        camera_bind_group: &'a BindGroup,
+        render_pass: &mut RenderPass<'_>,
+        pipelines: &'a PipelinePool,
+    ) {
+        let render_pipeline = &pipelines
+            .get(&*Self::PIPELINE_KEY)
+            .expect("Sprite RenderPipeline is not loaded")
+            .pipeline;
+
+        RenderPassDrawer::new()
+            .bind_group(camera_bind_group)
             .bind_group(&self.bind_group)
             .vertex_buffer(&self.vertex_buffer)
             .vertex_buffer(&self.instance_buffer.buffer())
             .index_range(0..6)
-            .build("Sprite", input.texture_view, &pipeline_data.pipeline);
-
-        render_pass.begin(input.encoder);
+            .draw(render_pass, render_pipeline);
     }
 }

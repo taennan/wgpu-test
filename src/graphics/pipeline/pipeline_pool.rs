@@ -104,14 +104,14 @@ impl PipelinePool {
         let render_pipeline_layout =
             self.device
                 .create_pipeline_layout(&PipelineLayoutDescriptor {
-                    label: Some(&format!("{} Render Pipeline Layout", name)),
+                    label: Some(&format!("{} Pipeline Layout", name)),
                     bind_group_layouts: &layouts,
                     push_constant_ranges: &[],
                 });
         let render_pipeline = self
             .device
             .create_render_pipeline(&RenderPipelineDescriptor {
-                label: Some(&format!("{} Render Pipeline", name)),
+                label: Some(&format!("{} Pipeline", name)),
                 layout: Some(&render_pipeline_layout),
                 vertex: wgpu::VertexState {
                     module: &shader,
@@ -149,6 +149,7 @@ impl PipelinePool {
                 multiview: None,
                 cache: None,
             });
+
         render_pipeline
     }
 }

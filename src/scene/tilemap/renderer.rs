@@ -1,5 +1,8 @@
 use super::{attributes::TilemapAttributes, vertices::TilemapVertices};
-use crate::graphics::{RenderPass, pipeline::PipelinePool, texture::TexturePool};
+use crate::graphics::{
+    pipeline::{PipelinePool, RenderPassDrawInput},
+    texture::TexturePool,
+};
 use std::{mem, num::NonZero, path::PathBuf};
 use wgpu::{
     BindGroup, BindGroupDescriptor, BindGroupEntry, BindGroupLayout, BindGroupLayoutDescriptor,
@@ -133,17 +136,23 @@ impl TilemapRenderer {
         Self { texture_bind_group }
     }
 
-    pub fn encode(&self, input: TilemapRenderInput) {
+    pub fn render(&self, input: TilemapRenderInput) {
         let shader_path = PathBuf::from(SHADER_PATH);
         let pipeline_data = input.pipeline_pool.get_unchecked(&shader_path);
         let vertex_buffer = TilemapVertices::new().vertex_buffer(input.attributes, input.device);
 
-        let render_pass = RenderPass::builder()
+        /*
+         *
+        RenderPassBuilder::new()
+            .name("Tilemap")
             .bind_group(input.camera_bind_group)
             .bind_group(&self.texture_bind_group)
             .vertex_buffer(&vertex_buffer)
-            .build("Tilemap", input.texture_view, &pipeline_data.pipeline);
-
-        render_pass.begin(input.encoder);
+            .draw(RenderPassDrawInput {
+                encoder: input.encoder,
+                render_pipeline: &pipeline_data.pipeline,
+                texture_view: input.texture_view,
+            });
+         */
     }
 }

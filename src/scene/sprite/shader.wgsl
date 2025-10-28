@@ -56,9 +56,6 @@ fn get_vertex_position(input: VertexInput) -> vec4<f32> {
     }
     xy_pos *= input.size;
 
-    //let xyz_position = input.position + vec3(xy_pos.x * input.position.x, xy_pos.y * input.position.y, input.position.z);
-    //let in_camera_position = camera.projection * vec4(xyz_position, 1.0);
-
     let xyz_position = input.position + vec3(xy_pos.x, xy_pos.y, 0.0);
     let in_camera_position = camera.projection * vec4(xyz_position, 1.0);
 

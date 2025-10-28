@@ -1,12 +1,12 @@
 use crate::{
     graphics::{
-        pipeline::{PipelinePool, Renderer, RendererPool},
+        pipeline::{PipelinePool, RenderPassFactory},
         texture::TexturePool,
     },
     scene::{
-        Scene,
+        Scene, TilemapRenderer,
         camera::CameraRenderer,
-        sprite::{Sprite, SpriteRenderer, SpriteRendererRenderInput, SpriteRendererUpdateInput},
+        sprite::{Sprite, SpriteRenderer, SpriteRendererUpdateInput},
     },
 };
 use std::{collections::HashMap, path::PathBuf};
@@ -14,34 +14,33 @@ use wgpu::{CommandEncoder, Device, TextureView};
 
 pub struct SceneRenderer {
     pub camera: CameraRenderer,
-    pub renderers: RendererPool,
-}
-
-pub struct SceneRendererUpdateInput<'a> {
-    pub scene: &'a Scene,
-    pub textures: &'a mut TexturePool,
-    pub pipelines: &'a mut PipelinePool,
-    pub device: &'a Device,
-}
-
-pub struct SceneRendererEncodeInput<'a> {
-    pub texture_view: &'a TextureView,
-    pub encoder: &'a mut CommandEncoder,
-    pub pipelines: &'a mut PipelinePool,
+    pub sprites: HashMap<PathBuf, SpriteRenderer>,
+    pub tilemap: Option<TilemapRenderer>,
 }
 
 impl SceneRenderer {
     pub fn new(device: &Device) -> Self {
         Self {
             camera: CameraRenderer::new(device),
-            renderers: RendererPool::new(),
+            sprites: HashMap::new(),
+            tilemap: None,
         }
     }
 
-    pub fn update<'a>(&mut self, input: SceneRendererUpdateInput<'a>) {
+    pub fn update<'a>(
+        &mut self,
+        scene: &'a Scene,
+        textures: &'a mut TexturePool,
+        pipelines: &'a mut PipelinePool,
+        device: &'a Device,
+    ) {
+        // Camera
+        self.camera.update(&scene.camera);
+
+        // Sprites
         let mut sorted_sprites = HashMap::<PathBuf, Vec<&Sprite>>::new();
 
-        for sprite in input.scene.sprites.iter() {
+        for sprite in scene.sprites.iter() {
             let key = sprite.texture_path.clone();
             match sorted_sprites.get_mut(&key) {
                 Some(sprites) => {
@@ -54,45 +53,39 @@ impl SceneRenderer {
         }
 
         for (key, sprites) in sorted_sprites {
-            if !self.renderers.has_sprite(&key) {
-                self.renderers.load_sprite(
+            if !self.sprites.contains_key(&key) {
+                self.sprites.insert(
                     key.clone(),
-                    SpriteRenderer::new(
-                        &sprites,
-                        &self.camera,
-                        input.textures,
-                        input.pipelines,
-                        input.device,
-                    ),
+                    SpriteRenderer::new(&sprites, &self.camera, textures, pipelines, device),
                 );
             }
 
             let renderer = self
-                .renderers
-                .get_sprite_mut(&key)
+                .sprites
+                .get_mut(&key)
                 .expect("Failed to load SpriteRenderer");
 
             renderer.update(SpriteRendererUpdateInput {
-                device: input.device,
+                device,
                 sprites: &sprites,
             });
         }
-
-        // Camera
-        self.camera.update(&input.scene.camera);
     }
 
-    pub fn encode<'a>(&mut self, input: SceneRendererEncodeInput<'a>) {
-        for renderer in self.renderers.values() {
-            match renderer {
-                Renderer::Sprite(r) => r.render(SpriteRendererRenderInput {
-                    camera_bind_group: self.camera.bind_group(),
-                    texture_view: input.texture_view,
-                    encoder: input.encoder,
-                    pipelines: &input.pipelines,
-                }),
-                Renderer::Tilemap(_) => (),
+    pub fn render(
+        &self,
+        texture_view: &TextureView,
+        encoder: &mut CommandEncoder,
+        pipelines: &mut PipelinePool,
+    ) {
+        for (index, renderer) in self.sprites.values().enumerate() {
+            let mut render_pass_factory = RenderPassFactory::new(&texture_view, encoder);
+            let mut render_pass = match index {
+                0 => render_pass_factory.start(),
+                _ => render_pass_factory.secondary(),
             };
+
+            renderer.render(self.camera.bind_group(), &mut render_pass, pipelines);
         }
     }
 }
