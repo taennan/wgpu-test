@@ -3,6 +3,7 @@ mod error;
 mod graphics;
 mod scene;
 mod systems;
+mod tests;
 mod utils;
 
 use app::App;

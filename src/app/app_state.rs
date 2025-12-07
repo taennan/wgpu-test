@@ -1,9 +1,11 @@
 use crate::{
     error::*,
     graphics::{
+        geometry::GeometryPool,
         pipeline::PipelinePool,
         surface::{SurfaceConfigFactory, SurfaceFactory},
         texture::TexturePool,
+        texture_v2::{TextureAtlas, TextureBufferPool},
     },
     scene::{Scene, SceneRenderer},
     utils::paths,
@@ -22,7 +24,10 @@ pub struct AppState {
     pub is_surface_configured: bool,
     pub device: Arc<Device>,
     pub queue: Arc<Queue>,
+    pub texture_atlas: TextureAtlas,
+    pub texture_buffers: TextureBufferPool,
     pub texture_pool: TexturePool,
+    pub geometry_pool: GeometryPool,
     pub pipeline_pool: PipelinePool,
     pub scene: Scene,
     pub scene_renderer: SceneRenderer,
@@ -73,8 +78,13 @@ impl AppState {
         let device = Arc::new(device_request.0);
         let queue = Arc::new(device_request.1);
 
+        let texture_atlas = TextureAtlas::new();
+        let texture_buffers = TextureBufferPool::new();
         let texture_pool = TexturePool::new(device.clone(), queue.clone());
-        let pipeline_pool = PipelinePool::new(surface_config.format, device.clone());
+
+        let geometry_pool = GeometryPool::new();
+
+        let mut pipeline_pool = PipelinePool::new(surface_config.format, device.clone());
 
         let scene_path = paths::scene(start_scene_name);
         let scene_toml = fs::read(scene_path).map_err(|_| {
@@ -86,7 +96,7 @@ impl AppState {
             Error::AssetLoadingFailed
         })?;
 
-        let scene_renderer = SceneRenderer::new(&device);
+        let scene_renderer = SceneRenderer::new(&mut pipeline_pool, &device);
         /*
         let mut camera_manager = Camera::new(&device);
         camera_manager.attributes.position = cgmath::Point3::new(0.0, 1.0, 2.0);
@@ -100,7 +110,10 @@ impl AppState {
             surface_config,
             device,
             queue,
+            texture_atlas,
+            texture_buffers,
             texture_pool,
+            geometry_pool,
             pipeline_pool,
             scene,
             scene_renderer,

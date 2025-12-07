@@ -1,4 +1,4 @@
-use crate::scene::{Camera, Sprite, tilemap::attributes::TilemapAttributes};
+use crate::scene::{Camera, Sprite, mesh::Mesh, tilemap::attributes::TilemapAttributes};
 use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, Default)]
@@ -9,6 +9,8 @@ pub struct Scene {
     pub tilemap: Option<TilemapAttributes>,
     #[serde(default = "Vec::new")]
     pub sprites: Vec<Sprite>,
+    #[serde(default = "Vec::new")]
+    pub meshes: Vec<Mesh>,
 }
 
 #[derive(Serialize, Deserialize)]

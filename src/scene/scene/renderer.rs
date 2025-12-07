@@ -1,11 +1,15 @@
+use super::{RendererRenderInput, RendererUpdateInput};
 use crate::{
     graphics::{
+        geometry::GeometryPool,
         pipeline::{PipelinePool, RenderPassFactory},
         texture::TexturePool,
+        texture_v2::TextureAtlas,
     },
     scene::{
         Scene, TilemapRenderer,
         camera::CameraRenderer,
+        mesh::MeshRenderer,
         sprite::{Sprite, SpriteRenderer, SpriteRendererUpdateInput},
     },
 };
@@ -14,28 +18,28 @@ use wgpu::{CommandEncoder, Device, TextureView};
 
 pub struct SceneRenderer {
     pub camera: CameraRenderer,
+    pub meshes: MeshRenderer,
     pub sprites: HashMap<PathBuf, SpriteRenderer>,
     pub tilemap: Option<TilemapRenderer>,
 }
 
 impl SceneRenderer {
-    pub fn new(device: &Device) -> Self {
+    pub fn new(pipelines: &mut PipelinePool, device: &Device) -> Self {
+        let camera = CameraRenderer::new(device);
+        let meshes = MeshRenderer::new(&camera, pipelines, device);
         Self {
-            camera: CameraRenderer::new(device),
+            camera,
+            meshes,
             sprites: HashMap::new(),
             tilemap: None,
         }
     }
 
-    pub fn update<'a>(
-        &mut self,
-        scene: &'a Scene,
-        textures: &'a mut TexturePool,
-        pipelines: &'a mut PipelinePool,
-        device: &'a Device,
-    ) {
-        // Camera
+    pub fn update(&mut self, scene: &Scene, input: &mut RendererUpdateInput) {
         self.camera.update(&scene.camera);
+        self.meshes.update(&scene.meshes, input);
+
+        /*
 
         // Sprites
         let mut sorted_sprites = HashMap::<PathBuf, Vec<&Sprite>>::new();
@@ -70,22 +74,31 @@ impl SceneRenderer {
                 sprites: &sprites,
             });
         }
+        */
     }
 
-    pub fn render(
-        &self,
-        texture_view: &TextureView,
-        encoder: &mut CommandEncoder,
-        pipelines: &mut PipelinePool,
-    ) {
+    pub fn render(&self, input: &mut RendererRenderInput) {
+        {
+            // Must wrap in block so that we can mutably borrow encoder later
+            let mut render_pass_factory =
+                RenderPassFactory::new(&input.texture_view, input.encoder);
+            self.meshes.render(
+                self.camera.bind_group(),
+                render_pass_factory.start(),
+                input.pipelines,
+            );
+        }
+
+        /*
         for (index, renderer) in self.sprites.values().enumerate() {
             let mut render_pass_factory = RenderPassFactory::new(&texture_view, encoder);
-            let mut render_pass = match index {
+            let render_pass = match index {
                 0 => render_pass_factory.start(),
                 _ => render_pass_factory.secondary(),
             };
 
-            renderer.render(self.camera.bind_group(), &mut render_pass, pipelines);
+            renderer.render(self.camera.bind_group(), render_pass, pipelines);
         }
+         */
     }
 }

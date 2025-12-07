@@ -199,7 +199,7 @@ impl SpriteRenderer {
     pub fn render<'a, 'b>(
         &'a self,
         camera_bind_group: &'a BindGroup,
-        render_pass: &mut RenderPass<'_>,
+        render_pass: RenderPass<'_>,
         pipelines: &'a PipelinePool,
     ) {
         let render_pipeline = &pipelines

@@ -19,10 +19,12 @@ impl<'a> BindGroupBuilder<'a> {
     }
 
     pub fn entry(mut self, resource: BindingResource<'a>) -> Self {
-        self.entries.push(BindGroupEntry {
+        let new_entry = BindGroupEntry {
             binding: self.entries.len() as u32,
             resource,
-        });
+        };
+
+        self.entries.push(new_entry);
         self
     }
 

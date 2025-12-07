@@ -14,6 +14,10 @@ pub fn scenes() -> PathBuf {
     root().join("assets/scenes")
 }
 
+pub fn geometry(name: &str) -> PathBuf {
+    assets().join("geometry").join(name)
+}
+
 pub fn scene(name: &str) -> PathBuf {
     scenes().join(format!("{name}.toml"))
 }

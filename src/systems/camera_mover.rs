@@ -10,23 +10,39 @@ impl AppSystem for CameraMover {
         let speed = camera.speed;
 
         if state.keys_pressed.contains(&KeyCode::ArrowLeft) {
-            self.move_camera(Vec3::X * -speed, camera);
+            self.rotate_camera_around_origin(-speed, 0.0, camera);
         }
         if state.keys_pressed.contains(&KeyCode::ArrowRight) {
-            self.move_camera(Vec3::X * speed, camera);
+            self.rotate_camera_around_origin(speed, 0.0, camera);
         }
         if state.keys_pressed.contains(&KeyCode::ArrowUp) {
-            self.move_camera(Vec3::Y * -speed, camera);
+            self.rotate_camera_around_origin(0.0, -speed, camera);
         }
         if state.keys_pressed.contains(&KeyCode::ArrowDown) {
-            self.move_camera(Vec3::Y * speed, camera);
+            self.rotate_camera_around_origin(0.0, speed, camera);
         }
     }
 }
 
 impl CameraMover {
-    fn move_camera(&self, vector: Vec3, camera: &mut Camera) {
-        camera.position += vector;
-        //state.camera_manager.update_staging_buffer();
+    fn rotate_camera_around_origin(&self, yaw_delta: f32, pitch_delta: f32, camera: &mut Camera) {
+        // Convert current position to spherical coordinates
+        let radius = camera.position.length();
+        let current_yaw = camera.position.z.atan2(camera.position.x);
+        let current_pitch = (camera.position.y / radius).asin();
+
+        // Apply rotation deltas
+        let new_yaw = current_yaw + yaw_delta;
+        let new_pitch = (current_pitch + pitch_delta).clamp(
+            -std::f32::consts::FRAC_PI_2 + 0.01,
+            std::f32::consts::FRAC_PI_2 - 0.01,
+        );
+
+        // Convert back to Cartesian coordinates
+        camera.position = Vec3::new(
+            radius * new_pitch.cos() * new_yaw.cos(),
+            radius * new_pitch.sin(),
+            radius * new_pitch.cos() * new_yaw.sin(),
+        );
     }
 }

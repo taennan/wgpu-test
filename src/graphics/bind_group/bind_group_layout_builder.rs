@@ -20,12 +20,14 @@ impl BindGroupLayoutBuilder {
     }
 
     pub fn entry(mut self, visibility: ShaderStages, ty: BindingType) -> Self {
-        self.entries.push(BindGroupLayoutEntry {
+        let new_entry = BindGroupLayoutEntry {
             ty,
             visibility,
             binding: self.entries.len() as u32,
             count: None,
-        });
+        };
+
+        self.entries.push(new_entry);
         self
     }
 

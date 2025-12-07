@@ -1,4 +1,9 @@
-use crate::{app::AppState, error::*, systems::AppSystem};
+use crate::{
+    app::{AppState, app},
+    error::*,
+    scene::{RendererRenderInput, RendererUpdateInput},
+    systems::AppSystem,
+};
 use wgpu::PollType;
 use winit::{event::WindowEvent, event_loop::ActiveEventLoop};
 
@@ -75,16 +80,27 @@ impl WindowRedrawer {
 
         app_state.scene_renderer.update(
             &app_state.scene,
-            &mut app_state.texture_pool,
-            &mut app_state.pipeline_pool,
-            &app_state.device,
+            &mut RendererUpdateInput {
+                texture_atlas: &mut app_state.texture_atlas,
+                texture_buffers: &mut app_state.texture_buffers,
+                textures: &mut app_state.texture_pool,
+                geometry: &mut app_state.geometry_pool,
+                pipelines: &mut app_state.pipeline_pool,
+                device: &app_state.device,
+                encoder: &mut encoder,
+            },
         );
 
-        app_state
-            .scene_renderer
-            .render(&texture_view, &mut encoder, &mut app_state.pipeline_pool);
+        app_state.scene_renderer.render(&mut RendererRenderInput {
+            texture_view: &texture_view,
+            pipelines: &mut app_state.pipeline_pool,
+            encoder: &mut encoder,
+        });
 
-        let _ = app_state.device.poll(PollType::wait_indefinitely());
+        app_state
+            .device
+            .poll(PollType::wait_indefinitely())
+            .expect("Failed to poll device");
 
         app_state.queue.submit(std::iter::once(encoder.finish()));
         texture_output.present();

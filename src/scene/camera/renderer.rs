@@ -38,6 +38,7 @@ impl CameraRenderer {
                 },
             )
             .build(device);
+
         let bind_group = BindGroupBuilder::new()
             .name("Camera Bind Group")
             .entry(BindingResource::Buffer(
