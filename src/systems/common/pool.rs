@@ -1,5 +1,5 @@
 use super::AppSystem;
-use crate::app::AppState;
+use crate::app::RootState;
 use winit::{event::WindowEvent, event_loop::ActiveEventLoop};
 
 #[derive(Default)]
@@ -16,12 +16,12 @@ impl AppSystemPool {
         &mut self,
         event: &'a WindowEvent,
         event_loop: &'a ActiveEventLoop,
-        app_state: &'a mut AppState,
+        root_state: &'a mut RootState,
     ) {
         for system in self.systems.iter() {
-            if system.can_run(app_state) {
-                system.handle_event(&event, event_loop, app_state);
-                system.run(app_state);
+            if system.can_run(root_state) {
+                system.handle_event(&event, event_loop, root_state);
+                system.run(root_state);
             }
         }
     }

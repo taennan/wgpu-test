@@ -60,7 +60,7 @@ impl GeometryPool {
     where
         P: AsRef<Path> + Into<PathBuf> + Clone,
     {
-        let path = utils::paths::assets().join(path);
+        let path = utils::paths::geometry(path);
         let (gltf_data, buffers, _) = gltf::import(path.clone())
             .map_err(|error| {
                 log::error!("Error loading gltf file\n{}\n{}", &path.display(), error);
@@ -113,7 +113,7 @@ impl GeometryPool {
     where
         P: AsRef<Path> + Into<PathBuf> + Debug + Clone,
     {
-        let path = utils::paths::assets().join(path);
+        let path = utils::paths::geometry(path);
         let (models, _) = tobj::load_obj(
             path,
             &tobj::LoadOptions {

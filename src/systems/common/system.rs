@@ -1,22 +1,23 @@
-use crate::app::AppState;
+use crate::app::RootState;
 use winit::{event::WindowEvent, event_loop::ActiveEventLoop};
 
 pub trait AppSystem {
     #[allow(unused)]
-    fn can_run(&self, state: &mut AppState) -> bool {
+    fn can_run(&self, state: &mut RootState) -> bool {
         true
     }
+
+    #[allow(unused)]
+    fn run(&self, state: &mut RootState) {}
 
     #[allow(unused)]
     fn handle_event<'a>(
         &self,
         event: &'a WindowEvent,
         event_loop: &'a ActiveEventLoop,
-        app_state: &'a mut AppState,
+        root_state: &'a mut RootState,
     ) {
     }
-
-    fn run(&self, state: &mut AppState);
 }
 
 /*

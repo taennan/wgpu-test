@@ -1,7 +1,8 @@
-pub mod texture;
-pub mod texture_pool;
-pub mod types;
+mod bindings;
+mod texture_atlas;
+mod texture_buffer_pool;
+mod utils;
 
-pub use texture::Texture;
-pub use texture_pool::TexturePool;
-pub use types::*;
+pub use bindings::*;
+pub use texture_atlas::TextureAtlas;
+pub use texture_buffer_pool::TextureBufferPool;

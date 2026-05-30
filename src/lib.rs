@@ -1,7 +1,7 @@
 mod app;
 mod error;
 mod graphics;
-mod scene;
+mod game;
 mod systems;
 mod tests;
 mod utils;

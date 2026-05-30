@@ -1,4 +1,4 @@
-use crate::{app::AppState, systems::AppSystem};
+use crate::{app::RootState, systems::AppSystem};
 use winit::{
     event::{ElementState, WindowEvent},
     event_loop::ActiveEventLoop,
@@ -12,24 +12,19 @@ impl AppSystem for KeyMapper {
         &self,
         event: &'a WindowEvent,
         _event_loop: &'a ActiveEventLoop,
-        app_state: &'a mut AppState,
+        state: &'a mut RootState,
     ) {
         match &event {
             WindowEvent::KeyboardInput { event, .. } => match (event.physical_key, event.state) {
                 (PhysicalKey::Code(key_code), ElementState::Pressed) => {
-                    app_state.keys_pressed.insert(key_code);
+                    state.app.keys_pressed.insert(key_code);
                 }
                 (PhysicalKey::Code(key_code), ElementState::Released) => {
-                    app_state.keys_pressed.remove(&key_code);
+                    state.app.keys_pressed.remove(&key_code);
                 }
                 _ => {}
             },
             _ => {}
         }
-    }
-
-    #[allow(unused)]
-    fn run(&self, ctx: &mut AppState) {
-        // NOOP
     }
 }

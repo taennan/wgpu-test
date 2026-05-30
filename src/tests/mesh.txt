@@ -1,0 +1,6 @@
+#
+# Experimental dynamic 3d geometry file format
+# .d3d
+#
+
+D3D

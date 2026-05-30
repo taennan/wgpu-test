@@ -1,4 +1,4 @@
-use crate::{app::AppState, systems::*};
+use crate::{app::RootState, systems::*};
 use std::sync::Arc;
 use winit::{
     application::ApplicationHandler,
@@ -9,7 +9,7 @@ use winit::{
 
 #[derive(Default)]
 pub struct App {
-    app_state: Option<AppState>,
+    root_state: Option<RootState>,
     systems_pool: AppSystemPool,
 }
 
@@ -18,12 +18,15 @@ impl App {
         let mut systems_pool = AppSystemPool::default();
         systems_pool.add(KeyMapper);
         systems_pool.add(AppCloser);
+        systems_pool.add(SceneLoader);
         systems_pool.add(CameraMover);
         //systems_pool.add(TextureToggler);
         systems_pool.add(WindowRedrawer);
+        systems_pool.add(CommandSubmitter);
+        systems_pool.add(WindowPresenter);
 
         Self {
-            app_state: None,
+            root_state: None,
             systems_pool,
         }
     }
@@ -32,7 +35,7 @@ impl App {
 impl ApplicationHandler for App {
     fn resumed(&mut self, event_loop: &ActiveEventLoop) {
         // NOTE: Don't know if this is necessary, just putting it here in case re-creating app state causes problems
-        if self.app_state.is_some() {
+        if self.root_state.is_some() {
             return;
         }
 
@@ -46,8 +49,8 @@ impl ApplicationHandler for App {
                 .expect("Failed to get window"),
         );
 
-        let state = AppState::try_new("start", window).expect("Failed to init AppState");
-        self.app_state = Some(state);
+        let state = RootState::try_new("start", window).expect("Failed to init RootState");
+        self.root_state = Some(state);
     }
 
     fn window_event(
@@ -56,9 +59,9 @@ impl ApplicationHandler for App {
         _window_id: WindowId,
         event: WindowEvent,
     ) {
-        if let Some(app_state) = &mut self.app_state {
+        if let Some(root_state) = &mut self.root_state {
             self.systems_pool
-                .handle_event(&event, event_loop, app_state);
+                .handle_event(&event, event_loop, root_state);
         }
     }
 }

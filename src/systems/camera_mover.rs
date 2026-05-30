@@ -1,24 +1,25 @@
-use crate::{app::AppState, scene::Camera, systems::AppSystem};
+use crate::{app::RootState, game::Camera, systems::AppSystem};
 use glam::Vec3;
 use winit::keyboard::KeyCode;
 
 pub struct CameraMover;
 
 impl AppSystem for CameraMover {
-    fn run(&self, state: &mut AppState) {
-        let camera = &mut state.scene.camera;
+    fn run(&self, state: &mut RootState) {
+        let camera = &mut state.game.camera;
         let speed = camera.speed;
+        let keys_pressed = &state.app.keys_pressed;
 
-        if state.keys_pressed.contains(&KeyCode::ArrowLeft) {
+        if keys_pressed.contains(&KeyCode::ArrowLeft) {
             self.rotate_camera_around_origin(-speed, 0.0, camera);
         }
-        if state.keys_pressed.contains(&KeyCode::ArrowRight) {
+        if keys_pressed.contains(&KeyCode::ArrowRight) {
             self.rotate_camera_around_origin(speed, 0.0, camera);
         }
-        if state.keys_pressed.contains(&KeyCode::ArrowUp) {
+        if keys_pressed.contains(&KeyCode::ArrowUp) {
             self.rotate_camera_around_origin(0.0, -speed, camera);
         }
-        if state.keys_pressed.contains(&KeyCode::ArrowDown) {
+        if keys_pressed.contains(&KeyCode::ArrowDown) {
             self.rotate_camera_around_origin(0.0, speed, camera);
         }
     }

@@ -91,6 +91,7 @@ impl PipelinePool {
     }
 
     fn create_pipeline(&mut self, input: &CreatePipelineInput) -> RenderPipeline {
+        log::debug!("READING SHADER FILE {:?}", input.shader_path);
         let shader_source_bytes = fs::read(&input.shader_path).expect("Failed to read shader file");
         let shader_source_text = String::from_utf8_lossy(&shader_source_bytes);
         let name = &input.shader_path.to_str().unwrap_or("Unkown");

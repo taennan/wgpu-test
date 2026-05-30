@@ -1,4 +1,4 @@
-use crate::{app::AppState, systems::AppSystem};
+use crate::{app::RootState, systems::AppSystem};
 use winit::{
     event::WindowEvent,
     keyboard::{KeyCode, PhysicalKey},
@@ -11,7 +11,7 @@ impl AppSystem for AppCloser {
         &self,
         event: &'a WindowEvent,
         event_loop: &'a winit::event_loop::ActiveEventLoop,
-        _app_state: &'a mut AppState,
+        _root_state: &'a mut RootState,
     ) {
         match &event {
             WindowEvent::CloseRequested => event_loop.exit(),
@@ -21,10 +21,5 @@ impl AppSystem for AppCloser {
             },
             _ => {}
         }
-    }
-
-    #[allow(unused)]
-    fn run(&self, ctx: &mut AppState) {
-        // NOOP
     }
 }

@@ -1,5 +1,5 @@
 use crate::{
-    app::AppState,
+    app::RootState,
     systems::{AppSystem, AppSystemContext},
 };
 use winit::{
@@ -15,7 +15,7 @@ impl AppSystem for TextureToggler {
             WindowEvent::KeyboardInput { event, .. } => match event.physical_key {
                 PhysicalKey::Code(KeyCode::Digit1) => {
                     if event.state == ElementState::Released {
-                        self.toggle_texture(&mut ctx.app_state);
+                        self.toggle_texture(&mut ctx.root_state);
                     }
                 }
                 _ => {}
@@ -26,27 +26,27 @@ impl AppSystem for TextureToggler {
 }
 
 impl TextureToggler {
-    fn toggle_texture(&self, app_state: &mut AppState) {
-        let next_texture_type = app_state.current_texture_type.other();
+    fn toggle_texture(&self, root_state: &mut RootState) {
+        let next_texture_type = root_state.current_texture_type.other();
         let next_texture_key = &next_texture_type.to_str();
 
-        let _ = app_state.texture_pool.load(next_texture_key);
+        let _ = root_state.texture_pool.load(next_texture_key);
 
-        let new_texture = match app_state.texture_pool.get(next_texture_key) {
+        let new_texture = match root_state.texture_pool.get(next_texture_key) {
             Some(texture) => texture,
             _ => {
                 log::error!("Failed to load texture");
                 return;
             }
         };
-        app_state
+        root_state
             .simple_bind_group
-            .set_texture(&new_texture, &app_state.device);
+            .set_texture(&new_texture, &root_state.device);
 
-        app_state
+        root_state
             .texture_pool
-            .unload(&app_state.current_texture_type.to_str());
-        app_state.current_texture_type = next_texture_type;
-        app_state.window.request_redraw();
+            .unload(&root_state.current_texture_type.to_str());
+        root_state.current_texture_type = next_texture_type;
+        root_state.window.request_redraw();
     }
 }
