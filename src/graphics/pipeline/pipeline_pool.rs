@@ -2,7 +2,7 @@ use std::{
     collections::HashMap,
     fs,
     path::{Path, PathBuf},
-    sync::Arc,
+    rc::Rc,
 };
 use wgpu::{
     BindGroupLayout, Device, PipelineCompilationOptions, PipelineLayoutDescriptor, RenderPipeline,
@@ -13,7 +13,7 @@ use wgpu::{
 pub struct PipelinePool {
     texture_format: TextureFormat,
     pipelines: HashMap<PathBuf, PipelineData>,
-    device: Arc<Device>,
+    device: Rc<Device>,
 }
 
 pub struct PipelineData {
@@ -28,7 +28,7 @@ pub struct CreatePipelineInput<'a> {
 }
 
 impl PipelinePool {
-    pub fn new(texture_format: TextureFormat, device: Arc<Device>) -> Self {
+    pub fn new(texture_format: TextureFormat, device: Rc<Device>) -> Self {
         Self {
             pipelines: HashMap::new(),
             texture_format,
@@ -101,13 +101,17 @@ impl PipelinePool {
             source: ShaderSource::Wgsl(shader_source_text.into()),
         });
 
-        let layouts = input.bind_group_layouts.iter().collect::<Vec<_>>();
+        let layouts = input
+            .bind_group_layouts
+            .iter()
+            .map(|l| Some(l))
+            .collect::<Vec<_>>();
         let render_pipeline_layout =
             self.device
                 .create_pipeline_layout(&PipelineLayoutDescriptor {
                     label: Some(&format!("{} Pipeline Layout", name)),
                     bind_group_layouts: &layouts,
-                    push_constant_ranges: &[],
+                    immediate_size: 0,
                 });
         let render_pipeline = self
             .device
@@ -147,7 +151,7 @@ impl PipelinePool {
                     alpha_to_coverage_enabled: false,
                 },
                 depth_stencil: None,
-                multiview: None,
+                multiview_mask: None,
                 cache: None,
             });
 

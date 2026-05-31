@@ -1,29 +1,6 @@
 use crate::error::*;
 use glam::UVec2;
-use wgpu::{Adapter, Instance, Surface, SurfaceConfiguration, SurfaceTarget};
-
-pub struct SurfaceFactory<'a, T> {
-    instance: &'a Instance,
-    target: T,
-}
-
-impl<'a, T> SurfaceFactory<'a, T>
-where
-    T: Into<SurfaceTarget<'static>> + Clone,
-{
-    pub fn new(instance: &'a Instance, target: T) -> Self {
-        Self { instance, target }
-    }
-
-    pub fn try_build(&self) -> Result<Surface<'static>> {
-        let surface = self
-            .instance
-            .create_surface(self.target.clone())
-            .map_err(|_| Error::SurfaceCreationFailed)?;
-
-        Ok(surface)
-    }
-}
+use wgpu::{Adapter, Surface, SurfaceConfiguration};
 
 pub struct SurfaceConfigFactory<'a> {
     surface: &'a Surface<'a>,

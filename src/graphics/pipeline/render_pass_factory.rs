@@ -36,13 +36,14 @@ impl<'a> RenderPassFactory<'a> {
             })],
             timestamp_writes: None,
             occlusion_query_set: None,
+            multiview_mask: None,
             depth_stencil_attachment: None,
         })
     }
 
     pub fn secondary(&'a mut self) -> RenderPass<'a> {
         self.encoder.begin_render_pass(&RenderPassDescriptor {
-            label: Some("Main Render Pass"),
+            label: Some("Secondary Render Pass"),
             color_attachments: &[Some(RenderPassColorAttachment {
                 view: self.texture_view,
                 resolve_target: None,
@@ -53,6 +54,7 @@ impl<'a> RenderPassFactory<'a> {
                 },
             })],
             timestamp_writes: None,
+            multiview_mask: None,
             occlusion_query_set: None,
             depth_stencil_attachment: None,
         })

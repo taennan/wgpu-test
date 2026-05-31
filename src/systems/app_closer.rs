@@ -4,6 +4,7 @@ use winit::{
     keyboard::{KeyCode, PhysicalKey},
 };
 
+#[derive(Debug)]
 pub struct AppCloser;
 
 impl AppSystem for AppCloser {

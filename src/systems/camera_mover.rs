@@ -2,6 +2,7 @@ use crate::{app::RootState, game::Camera, systems::AppSystem};
 use glam::Vec3;
 use winit::keyboard::KeyCode;
 
+#[derive(Debug)]
 pub struct CameraMover;
 
 impl AppSystem for CameraMover {

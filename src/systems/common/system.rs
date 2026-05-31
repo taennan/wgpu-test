@@ -1,7 +1,8 @@
 use crate::app::RootState;
+use std::fmt::Debug;
 use winit::{event::WindowEvent, event_loop::ActiveEventLoop};
 
-pub trait AppSystem {
+pub trait AppSystem: Debug {
     #[allow(unused)]
     fn can_run(&self, state: &mut RootState) -> bool {
         true

@@ -4,8 +4,8 @@
 
 @group(0) @binding(0) var<uniform> screen_height_aspect: f32;
 
-@group(1) @binding(0) var<uniform> atlas_diffuse: texture_2d<f32>;
-@group(1) @binding(1) var<uniform> atlas_sampler: sampler;
+@group(1) @binding(0) var atlas_diffuse: texture_2d<f32>;
+@group(1) @binding(1) var atlas_sampler: sampler;
 
 struct VertexInput {
     // Per vertex
@@ -34,12 +34,12 @@ fn vertex_main(input: VertexInput) -> VertexOutput {
     ) + input.position;
 
     var out: VertexOutput;
-    out.clip_position = vec4(vertex_pos, 1.0);
+    out.position = vec4(vertex_pos, 1.0);
     out.uv = input.texture_offset + (input.uv / input.texture_size);
     return out;
 }
 
 @fragment
 fn fragment_main(vertex: VertexOutput) -> @location(0) vec4<f32> {
-    return textureSample(texture_diffuse, texture_sampler, vertex.uv);
+    return textureSample(atlas_diffuse, atlas_sampler, vertex.uv);
 }

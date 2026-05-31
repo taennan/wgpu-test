@@ -4,12 +4,12 @@ use crate::{
         CameraRenderer, MeshRenderer, SpriteRenderer,
         geometry::GeometryPool,
         pipeline::PipelinePool,
-        surface::{SurfaceConfigFactory, SurfaceFactory},
+        surface::SurfaceConfigFactory,
         texture::{TextureAtlas, TextureBufferPool},
     },
 };
 use glam::UVec2;
-use std::sync::Arc;
+use std::{rc::Rc, sync::Arc};
 use wgpu::{
     CommandBuffer, Device, DeviceDescriptor, Instance, InstanceDescriptor, PowerPreference, Queue,
     RequestAdapterOptions, Surface, SurfaceConfiguration,
@@ -20,8 +20,8 @@ pub struct GraphicsState {
     pub surface: Surface<'static>,
     pub surface_config: SurfaceConfiguration,
     pub is_surface_configured: bool,
-    pub device: Arc<Device>,
-    pub queue: Arc<Queue>,
+    pub device: Rc<Device>,
+    pub queue: Queue,
     pub texture_atlas: TextureAtlas,
     pub texture_buffers: TextureBufferPool,
     pub geometry_pool: GeometryPool,
@@ -29,7 +29,6 @@ pub struct GraphicsState {
     pub camera_renderer: CameraRenderer,
     pub mesh_renderer: MeshRenderer,
     pub sprite_renderer: SpriteRenderer,
-    pub window: Arc<Window>,
     pub command_buffers: Vec<CommandBuffer>,
 }
 
@@ -41,10 +40,12 @@ impl GraphicsState {
             return Err(Error::WindowCreationFailed);
         }
 
-        let instance = Instance::new(&InstanceDescriptor::default());
+        let instance_descriptor = InstanceDescriptor::new_without_display_handle();
+        let instance = Instance::new(instance_descriptor);
 
-        let surface_factory = SurfaceFactory::new(&instance, window.clone());
-        let surface = surface_factory.try_build()?;
+        let surface = instance
+            .create_surface(Arc::clone(&window))
+            .map_err(|_| Error::SurfaceCreationFailed)?;
 
         let adapter =
             futures::executor::block_on(instance.request_adapter(&RequestAdapterOptions {
@@ -70,10 +71,10 @@ impl GraphicsState {
             }))
             .map_err(|_| Error::SurfaceCreationFailed)?;
 
-        let device = Arc::new(device_request.0);
-        let queue = Arc::new(device_request.1);
+        let device = Rc::new(device_request.0);
+        let queue = device_request.1;
 
-        let texture_atlas = TextureAtlas::new();
+        let texture_atlas = TextureAtlas::new(&device);
         let texture_buffers = TextureBufferPool::new();
 
         let geometry_pool = GeometryPool::new();
@@ -85,7 +86,6 @@ impl GraphicsState {
         let sprite_renderer = SpriteRenderer::new(&texture_atlas, &mut pipeline_pool, &device);
 
         Ok(Self {
-            window,
             surface,
             surface_config,
             device,

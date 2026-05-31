@@ -82,12 +82,9 @@ impl MeshRenderer {
             .iter()
             .map(|mesh| mesh.texture_path.clone())
             .collect();
-        input.texture_atlas.insert(
-            &textures,
-            input.texture_buffers,
-            input.device,
-            input.encoder,
-        );
+        input
+            .texture_atlas
+            .insert(&textures, input.device, input.queue, input.encoder);
 
         let vertices: Vec<_> = meshes
             .iter()
@@ -115,11 +112,9 @@ impl MeshRenderer {
             let texture_bind_group = BindGroupBuilder::new()
                 .name("Mesh Texture Bind Group")
                 .entry(BindingResource::TextureView(
-                    input.texture_atlas.view_unchecked(),
+                    input.texture_atlas.texture_view(),
                 ))
-                .entry(BindingResource::Sampler(
-                    input.texture_atlas.sampler_unchecked(),
-                ))
+                .entry(BindingResource::Sampler(input.texture_atlas.sampler()))
                 .build(&texture_bind_group_layout, input.device);
             self.texture_bind_group = Some(texture_bind_group);
 

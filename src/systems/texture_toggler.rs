@@ -7,6 +7,7 @@ use winit::{
     keyboard::{KeyCode, PhysicalKey},
 };
 
+#[derive(Debug)]
 pub struct TextureToggler;
 
 impl AppSystem for TextureToggler {

@@ -5,6 +5,7 @@ use winit::{
     keyboard::PhysicalKey,
 };
 
+#[derive(Debug)]
 pub struct KeyMapper;
 
 impl AppSystem for KeyMapper {

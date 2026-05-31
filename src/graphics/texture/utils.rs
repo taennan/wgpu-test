@@ -1,3 +1,4 @@
+use glam::UVec2;
 use wgpu::COPY_BYTES_PER_ROW_ALIGNMENT;
 
 pub fn align_to_bytes_per_row(image_width: usize) -> usize {
@@ -10,4 +11,12 @@ fn align_usize(image_width: usize, alignment: usize) -> usize {
     } else {
         image_width + (alignment - image_width % alignment)
     }
+}
+
+pub fn average_uvec2(sizes: &[UVec2]) -> UVec2 {
+    let mut sum = UVec2::ZERO;
+    for size in sizes {
+        sum += *size;
+    }
+    sum / sizes.len() as u32
 }

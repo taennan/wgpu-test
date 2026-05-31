@@ -7,6 +7,7 @@ use crate::{
 use glam::Vec3;
 use std::path::PathBuf;
 
+#[derive(Debug)]
 pub struct SceneLoader;
 
 impl AppSystem for SceneLoader {
@@ -18,14 +19,15 @@ impl AppSystem for SceneLoader {
         state.game.scene_path = Some(PathBuf::from("test"));
 
         let mut camera = Camera::new();
-        camera.position.y = 10.0;
+        camera.position.y = -10.0;
         camera.target = Vec3::ZERO;
         state.game.camera = camera;
 
         let mesh_texture_key = paths::texture("albatross-light.jpg");
-        let mesh = Mesh::new(paths::geometry("basic-cube.gltf"), mesh_texture_key);
+        let mesh = Mesh::new(paths::geometry("basic-cube.gltf"), mesh_texture_key.clone());
         state.game.meshes = vec![mesh];
 
+        log::debug!("Will create SceneLoader encoder");
         let mut encoder =
             state
                 .graphics
@@ -33,11 +35,12 @@ impl AppSystem for SceneLoader {
                 .create_command_encoder(&wgpu::CommandEncoderDescriptor {
                     label: Some("SceneLoader Encoder"),
                 });
+        log::debug!("Did create SceneLoader encoder");
 
         state.graphics.texture_atlas.insert(
-            &[],
-            &mut state.graphics.texture_buffers,
+            &[mesh_texture_key],
             &state.graphics.device,
+            &mut state.graphics.queue,
             &mut encoder,
         );
 

@@ -10,11 +10,11 @@ env_logger = "0.11.8"
 futures = "0.3.31"
 glam = { version = "0.30.8", features = ["bytemuck", "serde"] }
 gltf = { version = "1.4.1", features = ["import", "utils"] }
-guillotiere = "0.6.2"
+guillotiere = "0.7.0"
 image = "0.25.6"
 log = "0.4.27"
 tobj = "4.0.3"
 toml = "0.9.7"
 serde = { version = "1.0.228", features = ["derive"] }
-wgpu = { version = "27.0.1" }
+wgpu = { version = "29.0.3" }
 winit = "0.30.11"

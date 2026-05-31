@@ -49,10 +49,7 @@ impl SpriteRenderer {
                 .build(device);
             pipelines.load(&CreatePipelineInput {
                 shader_path: pipeline_key,
-                bind_group_layouts: &[
-                    aspect_bind_group_layout,
-                    atlas.bind_group_layout_unchecked().clone(),
-                ],
+                bind_group_layouts: &[aspect_bind_group_layout, atlas.bind_group_layout().clone()],
                 vertex_buffer_layouts: &[Vertex::LAYOUT, SpriteInstanceBufferData::LAYOUT],
             });
         }
@@ -91,12 +88,9 @@ impl SpriteRenderer {
             .iter()
             .map(|sprite| sprite.texture_path.clone())
             .collect();
-        input.texture_atlas.insert(
-            &textures,
-            input.texture_buffers,
-            input.device,
-            input.encoder,
-        );
+        input
+            .texture_atlas
+            .insert(&textures, input.device, input.queue, input.encoder);
 
         let vertices: Vec<_> = sprites
             .iter()

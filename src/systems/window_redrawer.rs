@@ -1,10 +1,13 @@
 use crate::{
-    app::RootState, error::*, graphics::RendererUpdateInput, graphics::pipeline::RenderPassFactory,
+    app::RootState,
+    error::*,
+    graphics::{RendererUpdateInput, pipeline::RenderPassFactory},
     systems::AppSystem,
 };
-use wgpu::PollType;
+use wgpu::{CurrentSurfaceTexture, PollType};
 use winit::{event::WindowEvent, event_loop::ActiveEventLoop};
 
+#[derive(Debug)]
 pub struct WindowRedrawer;
 
 impl AppSystem for WindowRedrawer {
@@ -54,18 +57,31 @@ impl WindowRedrawer {
             return Ok(());
         }
 
-        let texture_output = state
-            .graphics
-            .surface
-            .get_current_texture()
-            .map_err(|error| match error {
-                wgpu::SurfaceError::Lost => Error::Texture(TextureError::Lost),
-                wgpu::SurfaceError::Outdated => Error::Texture(TextureError::Outdated),
-                _ => Error::Texture(TextureError::Other),
-            })?;
-        let texture_view = texture_output
+        let current_surface_result = state.graphics.surface.get_current_texture();
+        let current_texture = match current_surface_result {
+            CurrentSurfaceTexture::Success(surface) => surface,
+            CurrentSurfaceTexture::Suboptimal(surface) => {
+                log::warn!("Sub optimal texture received. Try calling Surface::configure again");
+                surface
+            }
+            CurrentSurfaceTexture::Occluded | CurrentSurfaceTexture::Timeout => {
+                return Ok(());
+            }
+            _ => {
+                log::error!(
+                    "Getting current surface texture failed {:?}",
+                    current_surface_result
+                );
+                return Ok(());
+            }
+        };
+
+        let texture_view = current_texture
             .texture
-            .create_view(&wgpu::TextureViewDescriptor::default());
+            .create_view(&wgpu::TextureViewDescriptor {
+                label: Some("CurrentSurfaceTextureView"),
+                ..Default::default()
+            });
 
         let mut encoder =
             state
@@ -81,6 +97,7 @@ impl WindowRedrawer {
             geometry: &mut state.graphics.geometry_pool,
             pipelines: &mut state.graphics.pipeline_pool,
             device: &state.graphics.device,
+            queue: &mut state.graphics.queue,
             encoder: &mut encoder,
         };
 
@@ -89,16 +106,13 @@ impl WindowRedrawer {
             .graphics
             .mesh_renderer
             .update(&state.game.meshes, &mut renderer_update_input);
-        /*
-
         state
             .graphics
             .sprite_renderer
             .update(&state.game.sprites, &mut renderer_update_input);
-         */
 
+        // Must wrap in blocks so that we can mutably borrow encoder later
         {
-            // Must wrap in block so that we can mutably borrow encoder later
             let mut render_pass_factory = RenderPassFactory::new(&texture_view, &mut encoder);
             state.graphics.mesh_renderer.render(
                 state.graphics.camera_renderer.bind_group(),
@@ -106,32 +120,32 @@ impl WindowRedrawer {
                 &mut state.graphics.pipeline_pool,
             );
         }
-        /*
-
         {
             let mut render_pass_factory = RenderPassFactory::new(&texture_view, &mut encoder);
             state.graphics.sprite_renderer.render(
-                state.graphics.texture_atlas.bind_group_unchecked(),
-                render_pass_factory.start(),
+                state.graphics.texture_atlas.bind_group(),
+                render_pass_factory.secondary(),
                 &mut state.graphics.pipeline_pool,
             );
         }
-         */
 
+        log::debug!("Will poll");
         state
             .graphics
             .device
             .poll(PollType::wait_indefinitely())
             .expect("Failed to poll device");
+        log::debug!("Did poll");
 
-        state.graphics.command_buffers.push(encoder.finish());
         /*
+        state.graphics.surface_texture_view = Some(texture_view);
+        state.graphics.command_buffers.push(encoder.finish());
+         */
+
         state
             .graphics
             .queue
             .submit(std::iter::once(encoder.finish()));
-        texture_output.present();
-         */
 
         Ok(())
     }

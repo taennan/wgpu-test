@@ -25,6 +25,8 @@ impl App {
         systems_pool.add(CommandSubmitter);
         systems_pool.add(WindowPresenter);
 
+        log::debug!("Added systems");
+
         Self {
             root_state: None,
             systems_pool,
@@ -41,7 +43,8 @@ impl ApplicationHandler for App {
 
         let window_attributes = Window::default_attributes()
             .with_title("WGPU Test")
-            .with_theme(Some(Theme::Dark));
+            .with_theme(Some(Theme::Dark))
+            .with_active(true);
 
         let window = Arc::new(
             event_loop
@@ -49,7 +52,9 @@ impl ApplicationHandler for App {
                 .expect("Failed to get window"),
         );
 
+        log::debug!("Will init root state");
         let state = RootState::try_new("start", window).expect("Failed to init RootState");
+        log::debug!("Did init root state");
         self.root_state = Some(state);
     }
 
