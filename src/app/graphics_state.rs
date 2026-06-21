@@ -75,7 +75,7 @@ impl GraphicsState {
         let mut pipeline_pool = PipelinePool::new(surface_config.format, device.clone());
 
         let camera_renderer = CameraRenderer::new(&device);
-        let mesh_renderer = MeshRenderer::new(&camera_renderer, &mut pipeline_pool, &device);
+        let mesh_renderer = MeshRenderer::new(&camera_renderer, &texture_atlas, &mut pipeline_pool);
         let sprite_renderer = SpriteRenderer::new(&texture_atlas, &mut pipeline_pool, &device);
 
         Ok(Self {

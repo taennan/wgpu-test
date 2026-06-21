@@ -41,14 +41,20 @@ impl SceneLoader {
             &mut encoder,
         );
 
-        let mesh_key = paths::geometry("square.gltf");
+        let square_mesh_key = paths::geometry("square.gltf");
+        let cube_mesh_key = paths::geometry("basic-cube.gltf");
+
         state
             .graphics
             .geometry_pool
-            .insert_rect(&mesh_key, UVec2::new(200, 150));
+            .insert_rect(&square_mesh_key, UVec2::new(200, 150));
 
-        let mut sprite_0 = Sprite::new(mesh_key.clone(), texture_key_0.clone());
-        let mut sprite_1 = Sprite::new(mesh_key.clone(), texture_key_1.clone());
+        let mut camera = Camera::new();
+        camera.position.y = -10.0;
+        camera.target = Vec3::ZERO;
+
+        let mut sprite_0 = Sprite::new(square_mesh_key.clone(), texture_key_0.clone());
+        let mut sprite_1 = Sprite::new(square_mesh_key.clone(), texture_key_1.clone());
         sprite_0.position.x = 200.0;
         sprite_1.position.x = -200.0;
 
@@ -61,8 +67,13 @@ impl SceneLoader {
             .texture_atlas
             .atlas_item_index(&sprite_1.texture_path);
 
+        let mesh = Mesh::new(cube_mesh_key.clone(), texture_key_0.clone());
+
         state.game.scene_path = Some(PathBuf::from("test"));
         state.game.sprites = vec![sprite_0, sprite_1];
+        state.game.meshes = vec![mesh];
+        state.game.camera = camera;
+
         state.graphics.command_buffers.push(encoder.finish());
     }
 

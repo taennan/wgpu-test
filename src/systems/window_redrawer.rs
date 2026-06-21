@@ -120,6 +120,7 @@ impl WindowRedrawer {
             let mut render_pass_factory = RenderPassFactory::new(&texture_view, &mut encoder);
             state.graphics.mesh_renderer.render(
                 state.graphics.camera_renderer.bind_group(),
+                state.graphics.texture_atlas.bind_group(),
                 render_pass_factory.start(),
                 &mut state.graphics.pipeline_pool,
             );

@@ -1,7 +1,7 @@
 use crate::{
     game::Mesh,
     graphics::{
-        CameraRenderer, MeshInstanceBufferData, RendererUpdateInput,
+        CameraRenderer, MeshInstanceBufferData, RendererUpdateInput, TextureAtlas,
         bind_group::{BindGroupBuilder, BindGroupLayoutBuilder},
         buffer::MutBuffer,
         geometry::Vertex,
@@ -9,7 +9,7 @@ use crate::{
     },
     utils::paths,
 };
-use std::{mem, path::PathBuf, sync::LazyLock};
+use std::{collections::HashSet, mem, path::PathBuf, sync::LazyLock};
 use wgpu::{
     BindGroup, BindingResource, BindingType, BufferUsages, Device, RenderPass, SamplerBindingType,
     ShaderStages, TextureSampleType, TextureViewDimension,
@@ -17,7 +17,6 @@ use wgpu::{
 
 #[derive(Debug)]
 pub struct MeshRenderer {
-    texture_bind_group: Option<BindGroup>,
     vertex_buffer: Option<MutBuffer>,
     instance_buffer: Option<MutBuffer>,
     index_buffer: Option<MutBuffer>,
@@ -31,39 +30,22 @@ impl MeshRenderer {
 
     pub fn new(
         camera_renderer: &CameraRenderer,
+        atlas: &TextureAtlas,
         pipelines: &mut PipelinePool,
-        device: &Device,
     ) -> Self {
         let pipeline_key = &*Self::SHADER_PATH;
         if !pipelines.has(pipeline_key) {
-            let texture_bind_group_layout = BindGroupLayoutBuilder::new()
-                .name("Mesh Texture Bind Group Layout")
-                .entry(
-                    ShaderStages::FRAGMENT,
-                    BindingType::Texture {
-                        sample_type: TextureSampleType::Float { filterable: true },
-                        view_dimension: TextureViewDimension::D2,
-                        multisampled: false,
-                    },
-                )
-                .entry(
-                    ShaderStages::FRAGMENT,
-                    BindingType::Sampler(SamplerBindingType::Filtering),
-                )
-                .build(device);
-
             pipelines.load(&CreatePipelineInput {
                 shader_path: pipeline_key,
                 bind_group_layouts: &[
                     camera_renderer.bind_group_layout().clone(),
-                    texture_bind_group_layout,
+                    atlas.bind_group_layout().clone(),
                 ],
                 vertex_buffer_layouts: &[Vertex::LAYOUT, MeshInstanceBufferData::LAYOUT],
             });
         }
 
         Self {
-            texture_bind_group: None,
             vertex_buffer: None,
             instance_buffer: None,
             index_buffer: None,
@@ -78,46 +60,32 @@ impl MeshRenderer {
             return;
         }
 
-        let textures: Vec<_> = meshes
-            .iter()
-            .map(|mesh| mesh.texture_path.clone())
-            .collect();
-        input
-            .texture_atlas
-            .insert(&textures, input.device, input.queue, input.encoder);
+        let mesh_paths: HashSet<_> = meshes.iter().map(|mesh| &mesh.mesh_path).collect();
+        let geometries = mesh_paths
+            .into_iter()
+            .map(|mesh_path| input.geometry.get(mesh_path))
+            .filter(Option::is_some)
+            .map(|geometry| geometry.expect("Failed to filter out Option::none before unwrapping"))
+            .collect::<Vec<_>>();
 
-        let vertices: Vec<_> = meshes
-            .iter()
-            .flat_map(|mesh| input.geometry.load(&mesh.mesh_path).vertices.clone())
-            .collect();
+        let mut vertices = Vec::with_capacity(geometries.len());
+        let mut indices = Vec::with_capacity(geometries.len());
+        for geometry in geometries.into_iter() {
+            let offset_indices = geometry
+                .indices
+                .iter()
+                .map(|index| index + vertices.len() as u32)
+                .collect::<Vec<_>>();
+            indices.extend_from_slice(&offset_indices);
+            vertices.extend_from_slice(&geometry.vertices);
+        }
 
-        let indices: Vec<_> = meshes
-            .iter()
-            .flat_map(|mesh| input.geometry.load(&mesh.mesh_path).indices.clone())
-            .collect();
         let instance_buffer_data: Vec<_> = meshes
             .iter()
             .map(|mesh| MeshInstanceBufferData::from_mesh(mesh, &input.texture_atlas))
             .collect();
 
         if !self.is_inited || meshes.len() != self.total_instances {
-            let pipeline_key = &*Self::SHADER_PATH;
-            let texture_bind_group_layout = input
-                .pipelines
-                .get(pipeline_key)
-                .expect("Mesh pipeline was not loaded")
-                .bind_group_layouts
-                .get(1)
-                .expect("Mesh texture bind group layout was not loaded");
-            let texture_bind_group = BindGroupBuilder::new()
-                .name("Mesh Texture Bind Group")
-                .entry(BindingResource::TextureView(
-                    input.texture_atlas.texture_view(),
-                ))
-                .entry(BindingResource::Sampler(input.texture_atlas.sampler()))
-                .build(&texture_bind_group_layout, input.device);
-            self.texture_bind_group = Some(texture_bind_group);
-
             let vertex_buffer = MutBuffer::builder()
                 .name("Mesh Vertex Buffer")
                 .usages(BufferUsages::MAP_WRITE | BufferUsages::VERTEX)
@@ -155,16 +123,16 @@ impl MeshRenderer {
     pub fn render(
         &self,
         camera_bind_group: &BindGroup,
+        atlas_bind_group: &BindGroup,
         render_pass: RenderPass<'_>,
         pipelines: &mut PipelinePool,
     ) {
-        let (texture_bind_group, vertex_buffer, instance_buffer, index_buffer) = match (
-            &self.texture_bind_group,
+        let (vertex_buffer, instance_buffer, index_buffer) = match (
             &self.vertex_buffer,
             &self.instance_buffer,
             &self.index_buffer,
         ) {
-            (Some(t), Some(v), Some(i), Some(ib)) => (t, v, i, ib),
+            (Some(v), Some(i), Some(ib)) => (v, i, ib),
             _ => return,
         };
 
@@ -175,7 +143,7 @@ impl MeshRenderer {
 
         RenderPassDrawer::new()
             .bind_group(camera_bind_group)
-            .bind_group(texture_bind_group)
+            .bind_group(atlas_bind_group)
             .vertex_buffer(vertex_buffer.buffer())
             .vertex_buffer(instance_buffer.buffer())
             .index_buffer(index_buffer.buffer(), self.total_indices as u32)
