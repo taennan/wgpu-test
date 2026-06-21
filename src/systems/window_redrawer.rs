@@ -4,6 +4,7 @@ use crate::{
     graphics::{RendererUpdateInput, pipeline::RenderPassFactory},
     systems::AppSystem,
 };
+use glam::UVec2;
 use wgpu::{CurrentSurfaceTexture, PollType};
 use winit::{event::WindowEvent, event_loop::ActiveEventLoop};
 
@@ -36,6 +37,10 @@ impl WindowRedrawer {
                 .graphics
                 .surface
                 .configure(&state.graphics.device, &state.graphics.surface_config);
+            state
+                .graphics
+                .sprite_renderer
+                .update_screen_size(UVec2::new(size.width, size.height));
             state.graphics.is_surface_configured = true;
         }
     }
@@ -93,7 +98,6 @@ impl WindowRedrawer {
 
         let mut renderer_update_input = RendererUpdateInput {
             texture_atlas: &mut state.graphics.texture_atlas,
-            texture_buffers: &mut state.graphics.texture_buffers,
             geometry: &mut state.graphics.geometry_pool,
             pipelines: &mut state.graphics.pipeline_pool,
             device: &state.graphics.device,

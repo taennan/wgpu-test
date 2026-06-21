@@ -17,14 +17,14 @@ pub struct MeshInstanceBufferData {
 
 impl MeshInstanceBufferData {
     pub fn from_mesh(mesh: &Mesh, atlas: &TextureAtlas) -> Self {
-        let texture_uv_data = atlas
-            .get_texture_uv_data(&mesh.texture_path)
-            .expect("Texture not found");
+        let atlas_item_index = atlas
+            .atlas_item_index(&mesh.texture_path)
+            .expect("Failed to get Mesh atlas item index");
 
         Self {
             //quaternion: Mat4::from_cols(Vec4::ZERO, Vec4::ZERO, Vec4::ZERO, Vec4::ZERO),
-            texture_offset: texture_uv_data.offset,
-            texture_size: texture_uv_data.size,
+            texture_offset: todo!(),
+            texture_size: todo!(),
         }
     }
 

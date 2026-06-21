@@ -1,11 +1,8 @@
 use crate::{
     error::*,
     graphics::{
-        CameraRenderer, MeshRenderer, SpriteRenderer,
-        geometry::GeometryPool,
-        pipeline::PipelinePool,
-        surface::SurfaceConfigFactory,
-        texture::{TextureAtlas, TextureBufferPool},
+        CameraRenderer, MeshRenderer, SpriteRenderer, geometry::GeometryPool,
+        pipeline::PipelinePool, surface::SurfaceConfigFactory, texture::TextureAtlas,
     },
 };
 use glam::UVec2;
@@ -23,7 +20,6 @@ pub struct GraphicsState {
     pub device: Rc<Device>,
     pub queue: Queue,
     pub texture_atlas: TextureAtlas,
-    pub texture_buffers: TextureBufferPool,
     pub geometry_pool: GeometryPool,
     pub pipeline_pool: PipelinePool,
     pub camera_renderer: CameraRenderer,
@@ -75,10 +71,7 @@ impl GraphicsState {
         let queue = device_request.1;
 
         let texture_atlas = TextureAtlas::new(&device);
-        let texture_buffers = TextureBufferPool::new();
-
         let geometry_pool = GeometryPool::new();
-
         let mut pipeline_pool = PipelinePool::new(surface_config.format, device.clone());
 
         let camera_renderer = CameraRenderer::new(&device);
@@ -91,7 +84,6 @@ impl GraphicsState {
             device,
             queue,
             texture_atlas,
-            texture_buffers,
             geometry_pool,
             pipeline_pool,
             camera_renderer,

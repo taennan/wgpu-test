@@ -52,11 +52,12 @@ impl MutBufferBuilder {
     where
         S: Into<BufferAddress>,
     {
+        let size = size.into();
         let inner = device.create_buffer(&BufferDescriptor {
             label: self._name.as_deref(),
             usage: self._usages.unwrap_or(BufferUsages::MAP_WRITE),
             mapped_at_creation: false,
-            size: size.into(),
+            size,
         });
 
         MutBuffer {

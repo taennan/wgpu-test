@@ -10,25 +10,21 @@ use crate::{
     },
     utils::paths,
 };
-use std::{mem, path::PathBuf, sync::LazyLock};
+use glam::UVec2;
+use std::{collections::HashSet, mem, path::PathBuf, sync::LazyLock};
 use wgpu::{
     BindGroup, BindingResource, BindingType, BufferBindingType, BufferUsages, Device, RenderPass,
     ShaderStages,
 };
 
 pub struct SpriteRenderer {
-    aspect_buffer: MutBuffer,
-    aspect_bind_group: BindGroup,
+    screen_size_buffer: MutBuffer,
+    screen_size_bind_group: BindGroup,
     vertex_buffer: Option<MutBuffer>,
     instance_buffer: Option<MutBuffer>,
     index_buffer: Option<MutBuffer>,
     total_instances: usize,
     total_indices: usize,
-}
-
-pub struct SpriteRendererUpdateInput<'a> {
-    pub device: &'a Device,
-    pub sprites: &'a [&'a Sprite],
 }
 
 impl SpriteRenderer {
@@ -54,23 +50,23 @@ impl SpriteRenderer {
             });
         }
 
-        let aspect_bind_group_layout = pipelines
+        let screen_size_bind_group_layout = pipelines
             .get(pipeline_key)
             .and_then(|p| p.bind_group_layouts.get(0))
             .expect("Sprite bind group layouts not loaded");
-        let aspect_buffer = MutBuffer::builder()
+        let screen_size_buffer = MutBuffer::builder()
             .name("Sprite Aspect Buffer")
             .usages(BufferUsages::VERTEX | BufferUsages::UNIFORM | BufferUsages::MAP_WRITE)
-            .build(mem::size_of::<u32>() as u64, device);
-        let aspect_bind_group = BindGroupBuilder::new()
+            .build(mem::size_of::<UVec2>() as u64, device);
+        let screen_size_bind_group = BindGroupBuilder::new()
             .entry(BindingResource::Buffer(
-                aspect_buffer.buffer().as_entire_buffer_binding(),
+                screen_size_buffer.buffer().as_entire_buffer_binding(),
             ))
-            .build(aspect_bind_group_layout, device);
+            .build(screen_size_bind_group_layout, device);
 
         Self {
-            aspect_buffer,
-            aspect_bind_group,
+            screen_size_buffer,
+            screen_size_bind_group,
             vertex_buffer: None,
             instance_buffer: None,
             index_buffer: None,
@@ -79,27 +75,35 @@ impl SpriteRenderer {
         }
     }
 
+    pub fn update_screen_size(&mut self, screen_size: UVec2) {
+        self.screen_size_buffer.write(&[screen_size]);
+    }
+
     pub fn update(&mut self, sprites: &[Sprite], input: &mut RendererUpdateInput) {
         if !self.is_inited() && sprites.is_empty() {
             return;
         }
 
-        let textures: Vec<_> = sprites
-            .iter()
-            .map(|sprite| sprite.texture_path.clone())
-            .collect();
-        input
-            .texture_atlas
-            .insert(&textures, input.device, input.queue, input.encoder);
+        let mesh_paths: HashSet<_> = sprites.iter().map(|sprite| &sprite.mesh_path).collect();
+        let geometries = mesh_paths
+            .into_iter()
+            .map(|mesh_path| input.geometry.get(mesh_path))
+            .filter(Option::is_some)
+            .map(|geometry| geometry.expect("Failed to filter out Option::none before unwrapping"))
+            .collect::<Vec<_>>();
 
-        let vertices: Vec<_> = sprites
-            .iter()
-            .flat_map(|mesh| input.geometry.load(&mesh.mesh_path).vertices.clone())
-            .collect();
-        let indices: Vec<_> = sprites
-            .iter()
-            .flat_map(|mesh| input.geometry.load(&mesh.mesh_path).indices.clone())
-            .collect();
+        let mut vertices = Vec::with_capacity(geometries.len());
+        let mut indices = Vec::with_capacity(geometries.len());
+        for geometry in geometries.into_iter() {
+            let offset_indices = geometry
+                .indices
+                .iter()
+                .map(|index| index + vertices.len() as u32)
+                .collect::<Vec<_>>();
+            indices.extend_from_slice(&offset_indices);
+            vertices.extend_from_slice(&geometry.vertices);
+        }
+
         let instance_buffer_data: Vec<_> = sprites
             .iter()
             .map(|sprite| SpriteInstanceBufferData::from_sprite(sprite, input.texture_atlas))
@@ -168,7 +172,7 @@ impl SpriteRenderer {
             .pipeline;
 
         RenderPassDrawer::new()
-            .bind_group(&self.aspect_bind_group)
+            .bind_group(&self.screen_size_bind_group)
             .bind_group(&atlas_bind_group)
             .vertex_buffer(vertex_buffer.buffer())
             .vertex_buffer(instance_buffer.buffer())

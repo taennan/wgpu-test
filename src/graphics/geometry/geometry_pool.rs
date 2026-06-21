@@ -1,6 +1,6 @@
 use super::{Geometry, Vertex};
 use crate::utils;
-use glam::{Vec2, Vec3, Vec3Swizzles};
+use glam::{UVec2, Vec2, Vec3, Vec3Swizzles};
 use gltf;
 use image::EncodableLayout;
 use std::{
@@ -172,5 +172,38 @@ impl GeometryPool {
         }
 
         geometry
+    }
+
+    pub fn insert_rect(&mut self, key: &PathBuf, size: UVec2) {
+        if self.has(key) {
+            panic!(
+                "Trying to insert rect with key that already exists: {:?}",
+                key
+            );
+        }
+
+        let generated_geometry = Geometry {
+            vertices: vec![
+                Vertex {
+                    position: Vec3::new(0.0, 0.0, 0.0),
+                    uv: Vec2::new(0.0, 0.0),
+                },
+                Vertex {
+                    position: Vec3::new(size.x as f32, 0.0, 0.0),
+                    uv: Vec2::new(1.0, 0.0),
+                },
+                Vertex {
+                    position: Vec3::new(size.x as f32, size.y as f32, 0.0),
+                    uv: Vec2::new(1.0, 1.0),
+                },
+                Vertex {
+                    position: Vec3::new(0.0, size.y as f32, 0.0),
+                    uv: Vec2::new(0.0, 1.0),
+                },
+            ],
+            indices: vec![0, 1, 2, 0, 2, 3],
+        };
+
+        self.geometry.insert(key.clone(), generated_geometry);
     }
 }

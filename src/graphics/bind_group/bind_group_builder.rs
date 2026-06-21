@@ -31,7 +31,7 @@ impl<'a> BindGroupBuilder<'a> {
     pub fn build(self, layout: &BindGroupLayout, device: &Device) -> BindGroup {
         let entries = self.entries;
         let bind_group = device.create_bind_group(&BindGroupDescriptor {
-            label: Some("Camera Bind Group"),
+            label: self.label.clone().as_deref(),
             layout: &layout,
             entries: &entries,
         });

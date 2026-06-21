@@ -1,4 +1,5 @@
 use glam::UVec2;
+use guillotiere::Size;
 use wgpu::COPY_BYTES_PER_ROW_ALIGNMENT;
 
 pub fn align_to_bytes_per_row(image_width: usize) -> usize {
@@ -19,4 +20,8 @@ pub fn average_uvec2(sizes: &[UVec2]) -> UVec2 {
         sum += *size;
     }
     sum / sizes.len() as u32
+}
+
+pub fn uvec2_to_size(vec: UVec2) -> Size {
+    Size::new(vec.x as i32, vec.y as i32)
 }

@@ -1,7 +1,10 @@
 use bytemuck::{Pod, Zeroable};
 use glam::{Vec2, Vec3};
-use std::hash::{Hash, Hasher};
-use wgpu::VertexBufferLayout;
+use std::{
+    hash::{Hash, Hasher},
+    mem,
+};
+use wgpu::{VertexAttribute, VertexBufferLayout, VertexFormat, VertexStepMode};
 
 #[repr(C)]
 #[derive(Clone, Copy, Debug, Default, Pod, Zeroable)]
@@ -31,20 +34,20 @@ impl Hash for Vertex {
 }
 
 impl Vertex {
-    pub const SIZE: u64 = std::mem::size_of::<Self>() as u64;
+    pub const SIZE: u64 = mem::size_of::<Self>() as u64;
 
     pub const LAYOUT: VertexBufferLayout<'_> = VertexBufferLayout {
         array_stride: Self::SIZE,
-        step_mode: wgpu::VertexStepMode::Vertex,
+        step_mode: VertexStepMode::Vertex,
         attributes: &[
-            wgpu::VertexAttribute {
-                format: wgpu::VertexFormat::Float32x3,
+            VertexAttribute {
+                format: VertexFormat::Float32x3,
                 offset: 0,
                 shader_location: 0,
             },
-            wgpu::VertexAttribute {
-                format: wgpu::VertexFormat::Float32x2,
-                offset: std::mem::size_of::<Vec3>() as u64,
+            VertexAttribute {
+                format: VertexFormat::Float32x2,
+                offset: VertexFormat::Float32x3.size(),
                 shader_location: 1,
             },
         ],
