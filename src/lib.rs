@@ -1,9 +1,8 @@
 mod app;
 mod error;
-mod graphics;
 mod game;
+mod graphics;
 mod systems;
-mod tests;
 mod utils;
 
 use app::App;

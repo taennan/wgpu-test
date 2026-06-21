@@ -23,12 +23,8 @@ impl SceneLoader {
             return;
         }
 
-        let texture_key = paths::texture("albatross-dark.jpg");
-        let mesh_key = paths::geometry("square.gltf");
-
-        let mut sprite = Sprite::new(mesh_key.clone(), texture_key.clone());
-        sprite.position.x = 500.0;
-
+        let texture_key_0 = paths::texture("albatross-dark.jpg");
+        let texture_key_1 = paths::texture("albatross-light.jpg");
         log::debug!("Will create SceneLoader encoder");
         let mut encoder = state
             .graphics
@@ -38,24 +34,35 @@ impl SceneLoader {
             });
         log::debug!("Did create SceneLoader encoder");
 
+        state.graphics.texture_atlas.insert(
+            &[texture_key_0.clone(), texture_key_1.clone()],
+            &state.graphics.device,
+            &mut state.graphics.queue,
+            &mut encoder,
+        );
+
+        let mesh_key = paths::geometry("square.gltf");
         state
             .graphics
             .geometry_pool
             .insert_rect(&mesh_key, UVec2::new(200, 150));
 
-        state.graphics.texture_atlas.insert(
-            &[texture_key],
-            &state.graphics.device,
-            &mut state.graphics.queue,
-            &mut encoder,
-        );
-        sprite.texture_atlas_item_index = state
+        let mut sprite_0 = Sprite::new(mesh_key.clone(), texture_key_0.clone());
+        let mut sprite_1 = Sprite::new(mesh_key.clone(), texture_key_1.clone());
+        sprite_0.position.x = 200.0;
+        sprite_1.position.x = -200.0;
+
+        sprite_0.texture_atlas_item_index = state
             .graphics
             .texture_atlas
-            .atlas_item_index(&sprite.texture_path);
+            .atlas_item_index(&sprite_0.texture_path);
+        sprite_1.texture_atlas_item_index = state
+            .graphics
+            .texture_atlas
+            .atlas_item_index(&sprite_1.texture_path);
 
         state.game.scene_path = Some(PathBuf::from("test"));
-        state.game.sprites = vec![sprite];
+        state.game.sprites = vec![sprite_0, sprite_1];
         state.graphics.command_buffers.push(encoder.finish());
     }
 

@@ -15,10 +15,10 @@
 @group(1) @binding(3) var<storage, read> atlas_items: array<AtlasItem>;
 
 struct AtlasItem {
-    @location(0) position: vec2<u32>,
-    @location(1) size: vec2<u32>,
+    position: vec2<u32>,
+    size: vec2<u32>,
     // X and Y must not be zero!!
-    @location(2) divisions: vec2<u32>,
+    divisions: vec2<u32>,
 }
 
 struct VertexInput {
@@ -64,11 +64,12 @@ fn _vertex_position(vertex: f32, instance: f32, screen_dimension: u32) -> f32 {
 fn _vertex_uv(input: VertexInput) -> vec2<f32> {
     let atlas_item = atlas_items[input.atlas_item_index];
     let atlas_item_uv = _atlas_to_uv_coords(atlas_item.position) + _atlas_to_uv_coords(vec2(atlas_padding, atlas_padding));
-    let atlas_item_wh = _atlas_to_uv_coords(atlas_item.size);
+    let padding_uv = _atlas_to_uv_coords(vec2(atlas_padding, atlas_padding));
+    let atlas_item_wh = _atlas_to_uv_coords(atlas_item.size) - padding_uv * 2.0;
     let atlas_item_division_wh = atlas_item_wh / vec2(f32(atlas_item.divisions.x), f32(atlas_item.divisions.y));
 
     let vertex_division_offset = vec2(atlas_item_division_wh.x * f32(input.texture_division_coords.x), atlas_item_division_wh.y * f32(input.texture_division_coords.y));
-    let vertex_uv_inside_division = input.uv / atlas_item_division_wh;
+    let vertex_uv_inside_division = input.uv * atlas_item_division_wh;
 
     let vertex_uv = atlas_item_uv + vertex_division_offset + vertex_uv_inside_division;
     return vertex_uv;

@@ -1,26 +1,31 @@
 use crate::graphics::{
     bind_group::{BindGroupBuilder, BindGroupLayoutBuilder},
-    texture::{image::AtlasImage, utils},
+    buffer::{MutBuffer, MutBufferBuilder},
+    texture::{buffer_data::AtlasItemMetaBufferData, image::AtlasImage, utils},
 };
 use glam::{UVec2, Vec2};
-use guillotiere::{AllocId, Allocation, AtlasAllocator, Size};
+use guillotiere::{AllocId, Allocation, AtlasAllocator};
 use std::{
     collections::HashMap,
     fmt::{self, Debug, Formatter},
-    path::PathBuf,
+    path::{Path, PathBuf},
 };
 use wgpu::{
-    AddressMode, BindGroup, BindGroupLayout, BindingResource, BindingType, CommandEncoder, Device,
-    Extent3d, FilterMode, Origin3d, Queue, Sampler, SamplerBindingType, SamplerDescriptor,
+    AddressMode, BindGroup, BindGroupLayout, BindingResource, BindingType, Buffer, BufferBinding,
+    BufferBindingType, BufferUsages, CommandEncoder, Device, Extent3d, FilterMode,
+    MipmapFilterMode, Origin3d, Queue, Sampler, SamplerBindingType, SamplerDescriptor,
     ShaderStages, TexelCopyBufferLayout, TexelCopyTextureInfo, Texture, TextureAspect,
     TextureDescriptor, TextureDimension, TextureFormat, TextureSampleType, TextureUsages,
     TextureView, TextureViewDescriptor, TextureViewDimension,
+    util::{BufferInitDescriptor, DeviceExt},
 };
 
 #[derive(Clone)]
 pub struct TextureAtlas {
     bind_group_layout: BindGroupLayout,
     bind_group: BindGroup,
+    atlas_padding_buffer: Buffer,
+    atlas_items_buffer: MutBuffer,
     texture_view: TextureView,
     sampler: Sampler,
     items: HashMap<PathBuf, AtlasItem>,
@@ -30,23 +35,11 @@ pub struct TextureAtlas {
 #[derive(Clone, Debug)]
 struct AtlasItem {
     pub allocation_id: AllocId,
+    pub total_dependants: u32,
+    pub buffer_index: u32,
     pub size: UVec2,
     pub position: UVec2,
     pub divisions: UVec2,
-}
-
-#[derive(Clone, Debug)]
-pub struct AtlasItemUvData {
-    pub offset: Vec2,
-    pub size: Vec2,
-    pub divisions: UVec2,
-}
-
-struct GpuInitOutput {
-    bind_group_layout: BindGroupLayout,
-    bind_group: BindGroup,
-    texture_view: TextureView,
-    sampler: Sampler,
 }
 
 impl AtlasItem {
@@ -61,6 +54,8 @@ impl AtlasItem {
 
         Self {
             allocation_id: allocation.id,
+            total_dependants: 0,
+            buffer_index: 0,
             size,
             position,
             divisions,
@@ -88,72 +83,55 @@ impl Debug for TextureAtlas {
 
 impl TextureAtlas {
     pub fn new(device: &Device) -> Self {
-        let size = UVec2::ONE;
-        let GpuInitOutput {
-            bind_group_layout,
-            bind_group,
-            texture_view,
-            sampler,
-        } = Self::init_gpu_stuff(size, device);
+        Self::new_with_padding(device, 0)
+    }
+
+    fn new_with_padding(device: &Device, padding: u32) -> Self {
+        let texture_size = UVec2::ONE + UVec2::new(padding, padding) * 2;
+        let (_, texture_view) = Self::init_gpu_texture(texture_size, device);
+
+        let sampler_address_mode = AddressMode::ClampToEdge;
+        let sampler = device.create_sampler(&SamplerDescriptor {
+            label: Some("TextureAtlas Sampler"),
+            address_mode_u: sampler_address_mode,
+            address_mode_v: sampler_address_mode,
+            address_mode_w: sampler_address_mode,
+            mag_filter: FilterMode::Linear,
+            min_filter: FilterMode::Nearest,
+            mipmap_filter: MipmapFilterMode::Nearest,
+            ..Default::default()
+        });
+
+        let atlas_padding_buffer = device.create_buffer_init(&BufferInitDescriptor {
+            label: Some("Atlas Padding Buffer"),
+            usage: BufferUsages::UNIFORM,
+            contents: bytemuck::cast_slice(&[padding]),
+        });
+
+        let (bind_group_layout, bind_group, atlas_items_buffer) = Self::init_atlas_items_buffer(
+            &[],
+            &texture_view,
+            &sampler,
+            &atlas_padding_buffer,
+            device,
+        );
 
         Self {
             bind_group,
             bind_group_layout,
+            atlas_padding_buffer,
+            atlas_items_buffer,
             texture_view,
             sampler,
             items: HashMap::default(),
-            allocator: AtlasAllocator::new(Self::uvec2_to_size(size)),
+            allocator: AtlasAllocator::new(utils::uvec2_to_size(texture_size)),
         }
     }
 
-    fn init_gpu_stuff(size: UVec2, device: &Device) -> GpuInitOutput {
-        let (_, texture_view) = Self::init_gpu_texture(size, device);
-
-        let sampler = device.create_sampler(&SamplerDescriptor {
-            label: Some("TextureAtlas Sampler"),
-            address_mode_u: AddressMode::Repeat,
-            address_mode_v: AddressMode::Repeat,
-            address_mode_w: AddressMode::Repeat,
-            mag_filter: FilterMode::Linear,
-            min_filter: FilterMode::Nearest,
-            mipmap_filter: wgpu::MipmapFilterMode::Nearest,
-            ..Default::default()
-        });
-
-        let bind_group_layout = BindGroupLayoutBuilder::new()
-            .name("TextureAtlas Bind Group Layout")
-            .entry(
-                ShaderStages::FRAGMENT,
-                BindingType::Texture {
-                    sample_type: TextureSampleType::Float { filterable: true },
-                    view_dimension: TextureViewDimension::D2,
-                    multisampled: false,
-                },
-            )
-            .entry(
-                ShaderStages::FRAGMENT,
-                BindingType::Sampler(SamplerBindingType::Filtering),
-            )
-            .build(device);
-
-        let bind_group = BindGroupBuilder::new()
-            .name("TextureAtlas Bind Group")
-            .entry(BindingResource::TextureView(&texture_view))
-            .entry(BindingResource::Sampler(&sampler))
-            .build(&bind_group_layout, device);
-
-        return GpuInitOutput {
-            texture_view,
-            sampler,
-            bind_group_layout,
-            bind_group,
-        };
-    }
-
-    fn init_gpu_texture(size: UVec2, device: &Device) -> (Texture, TextureView) {
-        let extent = wgpu::Extent3d {
-            width: size.x,
-            height: size.y,
+    fn init_gpu_texture(texture_size: UVec2, device: &Device) -> (Texture, TextureView) {
+        let extent = Extent3d {
+            width: texture_size.x,
+            height: texture_size.y,
             depth_or_array_layers: 1,
         };
 
@@ -176,6 +154,81 @@ impl TextureAtlas {
         });
 
         (texture, texture_view)
+    }
+
+    fn init_atlas_items_buffer(
+        atlas_items_meta: &[AtlasItemMetaBufferData],
+        texture_view: &TextureView,
+        sampler: &Sampler,
+        atlas_padding_buffer: &Buffer,
+        device: &Device,
+    ) -> (BindGroupLayout, BindGroup, MutBuffer) {
+        let bind_group_layout = BindGroupLayoutBuilder::new()
+            .name("TextureAtlas Bind Group Layout")
+            .entry(
+                ShaderStages::VERTEX_FRAGMENT,
+                BindingType::Texture {
+                    sample_type: TextureSampleType::Float { filterable: true },
+                    view_dimension: TextureViewDimension::D2,
+                    multisampled: false,
+                },
+            )
+            .entry(
+                ShaderStages::FRAGMENT,
+                BindingType::Sampler(SamplerBindingType::Filtering),
+            )
+            .entry(
+                ShaderStages::VERTEX,
+                BindingType::Buffer {
+                    ty: BufferBindingType::Uniform,
+                    has_dynamic_offset: false,
+                    min_binding_size: None,
+                },
+            )
+            .entry(
+                ShaderStages::VERTEX,
+                BindingType::Buffer {
+                    ty: BufferBindingType::Storage { read_only: true },
+                    has_dynamic_offset: false,
+                    min_binding_size: None,
+                },
+            )
+            .build(device);
+
+        let atlas_items_buffer_builder = MutBufferBuilder::default()
+            .name("Atlas Items Metadata Buffer")
+            .usages(BufferUsages::MAP_WRITE | BufferUsages::STORAGE);
+        let atlas_items_buffer = match atlas_items_meta.len() {
+            0 => atlas_items_buffer_builder.build(256u64, device),
+            _ => atlas_items_buffer_builder.build_init(&atlas_items_meta, device),
+        };
+
+        let bind_group = BindGroupBuilder::new()
+            .name("TextureAtlas Bind Group")
+            .entry(BindingResource::TextureView(&texture_view))
+            .entry(BindingResource::Sampler(&sampler))
+            .entry(BindingResource::Buffer(BufferBinding {
+                buffer: &atlas_padding_buffer,
+                offset: 0,
+                size: None,
+            }))
+            .entry(BindingResource::Buffer(BufferBinding {
+                buffer: atlas_items_buffer.buffer(),
+                offset: 0,
+                size: None,
+            }))
+            .build(&bind_group_layout, device);
+
+        (bind_group_layout, bind_group, atlas_items_buffer)
+    }
+
+    pub fn atlas_item_index<P>(&self, texture_path: P) -> Option<u32>
+    where
+        P: AsRef<Path>,
+    {
+        self.items
+            .get(texture_path.as_ref())
+            .map(|item| item.buffer_index)
     }
 
     pub fn texture_view(&self) -> &TextureView {
@@ -203,25 +256,6 @@ impl TextureAtlas {
 
     pub fn has(&self, texture_path: &PathBuf) -> bool {
         self.items.contains_key(texture_path)
-    }
-
-    pub fn get_texture_uv_data(&self, texture_path: &PathBuf) -> Option<AtlasItemUvData> {
-        self.items.get(texture_path).map(|item| {
-            let self_size = Vec2::new(self.size().x as f32, self.size().y as f32);
-
-            let item_pos = Vec2::new(item.position.x as f32, item.position.y as f32);
-            let offset = Vec2::ONE / (self_size / item_pos);
-
-            let item_size = Vec2::new(item.size.x as f32, item.size.y as f32);
-            let size = Vec2::ONE / (self_size / item_size);
-
-            let uv_data = AtlasItemUvData {
-                offset,
-                size,
-                divisions: item.divisions,
-            };
-            uv_data
-        })
     }
 
     pub fn insert(
@@ -252,8 +286,8 @@ impl TextureAtlas {
                 .map(|v| v.size)
                 .chain(self.items.values().map(|v| v.size))
                 .collect::<Vec<_>>();
-            let increment_size = Self::uvec2_to_size(utils::average_uvec2(&image_sizes));
-            let size = Self::uvec2_to_size(image.size);
+            let increment_size = utils::uvec2_to_size(utils::average_uvec2(&image_sizes));
+            let size = utils::uvec2_to_size(image.size);
 
             log::debug!("Atlas increment size: {:?}", increment_size);
             log::debug!("Allocation size {:?}", size);
@@ -324,10 +358,44 @@ impl TextureAtlas {
             );
         }
 
+        for texture_path in textures {
+            if let Some(item) = self.items.get_mut(texture_path) {
+                item.total_dependants += 1;
+            }
+        }
+
+        let atlas_items_meta = self
+            .items
+            .values_mut()
+            .enumerate()
+            .map(|(index, item)| {
+                item.buffer_index = index as u32;
+                let atlas_item_meta =
+                    AtlasItemMetaBufferData::new(item.position, item.size, item.divisions);
+                atlas_item_meta
+            })
+            .collect::<Vec<_>>();
+        let (bind_group_layout, bind_group, atlas_items_buffer) = Self::init_atlas_items_buffer(
+            &atlas_items_meta,
+            &self.texture_view,
+            &self.sampler,
+            &self.atlas_padding_buffer,
+            device,
+        );
+        self.bind_group_layout = bind_group_layout;
+        self.bind_group = bind_group;
+        self.atlas_items_buffer = atlas_items_buffer;
         queue.submit([]);
     }
 
-    fn uvec2_to_size(vec: UVec2) -> Size {
-        Size::new(vec.x as i32, vec.y as i32)
+    fn remove(&mut self, textures: &[PathBuf]) {
+        for texture in textures {
+            if let Some(item) = self.items.get_mut(texture) {
+                item.total_dependants -= 1;
+                if item.total_dependants == 0 {
+                    self.items.remove(texture);
+                }
+            }
+        }
     }
 }
