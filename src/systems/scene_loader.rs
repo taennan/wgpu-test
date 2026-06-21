@@ -25,7 +25,9 @@ impl SceneLoader {
 
         let texture_key = paths::texture("albatross-dark.jpg");
         let mesh_key = paths::geometry("square.gltf");
+
         let mut sprite = Sprite::new(mesh_key.clone(), texture_key.clone());
+        sprite.position.x = 500.0;
 
         log::debug!("Will create SceneLoader encoder");
         let mut encoder = state
@@ -39,7 +41,7 @@ impl SceneLoader {
         state
             .graphics
             .geometry_pool
-            .insert_rect(&mesh_key, UVec2::new(100, 50));
+            .insert_rect(&mesh_key, UVec2::new(200, 150));
 
         state.graphics.texture_atlas.insert(
             &[texture_key],

@@ -186,19 +186,19 @@ impl GeometryPool {
             vertices: vec![
                 Vertex {
                     position: Vec3::new(0.0, 0.0, 0.0),
-                    uv: Vec2::new(0.0, 0.0),
+                    uv: Vec2::new(0.0, 1.0),
                 },
                 Vertex {
                     position: Vec3::new(size.x as f32, 0.0, 0.0),
-                    uv: Vec2::new(1.0, 0.0),
-                },
-                Vertex {
-                    position: Vec3::new(size.x as f32, size.y as f32, 0.0),
                     uv: Vec2::new(1.0, 1.0),
                 },
                 Vertex {
+                    position: Vec3::new(size.x as f32, size.y as f32, 0.0),
+                    uv: Vec2::new(1.0, 0.0),
+                },
+                Vertex {
                     position: Vec3::new(0.0, size.y as f32, 0.0),
-                    uv: Vec2::new(0.0, 1.0),
+                    uv: Vec2::new(0.0, 0.0),
                 },
             ],
             indices: vec![0, 1, 2, 0, 2, 3],

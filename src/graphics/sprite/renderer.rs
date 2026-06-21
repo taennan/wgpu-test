@@ -33,7 +33,7 @@ impl SpriteRenderer {
     pub fn new(atlas: &TextureAtlas, pipelines: &mut PipelinePool, device: &Device) -> Self {
         let pipeline_key = &*Self::SHADER_PATH;
         if !pipelines.has(pipeline_key) {
-            let aspect_bind_group_layout = BindGroupLayoutBuilder::new()
+            let screen_size_bind_group_layout = BindGroupLayoutBuilder::new()
                 .entry(
                     ShaderStages::VERTEX,
                     BindingType::Buffer {
@@ -45,7 +45,10 @@ impl SpriteRenderer {
                 .build(device);
             pipelines.load(&CreatePipelineInput {
                 shader_path: pipeline_key,
-                bind_group_layouts: &[aspect_bind_group_layout, atlas.bind_group_layout().clone()],
+                bind_group_layouts: &[
+                    screen_size_bind_group_layout,
+                    atlas.bind_group_layout().clone(),
+                ],
                 vertex_buffer_layouts: &[Vertex::LAYOUT, SpriteInstanceBufferData::LAYOUT],
             });
         }

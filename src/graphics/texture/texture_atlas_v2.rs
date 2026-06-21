@@ -8,12 +8,11 @@ use guillotiere::{AllocId, Allocation, AtlasAllocator};
 use std::{
     collections::HashMap,
     fmt::{self, Debug, Formatter},
-    num::NonZero,
     path::{Path, PathBuf},
 };
 use wgpu::{
     AddressMode, BindGroup, BindGroupLayout, BindingResource, BindingType, Buffer, BufferBinding,
-    BufferBindingType, BufferSize, BufferUsages, CommandEncoder, Device, Extent3d, FilterMode,
+    BufferBindingType, BufferUsages, CommandEncoder, Device, Extent3d, FilterMode,
     MipmapFilterMode, Origin3d, Queue, Sampler, SamplerBindingType, SamplerDescriptor,
     ShaderStages, TexelCopyBufferLayout, TexelCopyTextureInfo, Texture, TextureAspect,
     TextureDescriptor, TextureDimension, TextureFormat, TextureSampleType, TextureUsages,
@@ -40,13 +39,6 @@ struct AtlasItem {
     pub buffer_index: u32,
     pub size: UVec2,
     pub position: UVec2,
-    pub divisions: UVec2,
-}
-
-#[derive(Clone, Debug)]
-struct AtlasItemUvData {
-    pub offset: Vec2,
-    pub size: Vec2,
     pub divisions: UVec2,
 }
 
@@ -173,7 +165,7 @@ impl TextureAtlas {
         let bind_group_layout = BindGroupLayoutBuilder::new()
             .name("TextureAtlas Bind Group Layout")
             .entry(
-                ShaderStages::FRAGMENT,
+                ShaderStages::VERTEX_FRAGMENT,
                 BindingType::Texture {
                     sample_type: TextureSampleType::Float { filterable: true },
                     view_dimension: TextureViewDimension::D2,
@@ -185,7 +177,7 @@ impl TextureAtlas {
                 BindingType::Sampler(SamplerBindingType::Filtering),
             )
             .entry(
-                ShaderStages::FRAGMENT,
+                ShaderStages::VERTEX,
                 BindingType::Buffer {
                     ty: BufferBindingType::Uniform,
                     has_dynamic_offset: false,
@@ -193,7 +185,7 @@ impl TextureAtlas {
                 },
             )
             .entry(
-                ShaderStages::FRAGMENT,
+                ShaderStages::VERTEX,
                 BindingType::Buffer {
                     ty: BufferBindingType::Storage { read_only: true },
                     has_dynamic_offset: false,
@@ -202,10 +194,13 @@ impl TextureAtlas {
             )
             .build(device);
 
-        let atlas_items_buffer = MutBufferBuilder::default()
+        let atlas_items_buffer_builder = MutBufferBuilder::default()
             .name("Atlas Items Metadata Buffer")
-            .usages(BufferUsages::MAP_WRITE | BufferUsages::STORAGE)
-            .build_init(&atlas_items_meta, device);
+            .usages(BufferUsages::MAP_WRITE | BufferUsages::STORAGE);
+        let atlas_items_buffer = match atlas_items_meta.len() {
+            0 => atlas_items_buffer_builder.build(256u64, device),
+            _ => atlas_items_buffer_builder.build_init(&atlas_items_meta, device),
+        };
 
         let bind_group = BindGroupBuilder::new()
             .name("TextureAtlas Bind Group")
@@ -218,7 +213,7 @@ impl TextureAtlas {
             }))
             .entry(BindingResource::Buffer(BufferBinding {
                 buffer: atlas_items_buffer.buffer(),
-                offset: 256, //atlas_padding_buffer.size(),
+                offset: 0,
                 size: None,
             }))
             .build(&bind_group_layout, device);
@@ -260,25 +255,6 @@ impl TextureAtlas {
 
     pub fn has(&self, texture_path: &PathBuf) -> bool {
         self.items.contains_key(texture_path)
-    }
-
-    pub fn get_texture_uv_data(&self, texture_path: &PathBuf) -> Option<AtlasItemUvData> {
-        self.items.get(texture_path).map(|item| {
-            let self_size = Vec2::new(self.size().x as f32, self.size().y as f32);
-
-            let item_pos = Vec2::new(item.position.x as f32, item.position.y as f32);
-            let offset = Vec2::ONE / (self_size / item_pos);
-
-            let item_size = Vec2::new(item.size.x as f32, item.size.y as f32);
-            let size = Vec2::ONE / (self_size / item_size);
-
-            let uv_data = AtlasItemUvData {
-                offset,
-                size,
-                divisions: item.divisions,
-            };
-            uv_data
-        })
     }
 
     pub fn insert(
