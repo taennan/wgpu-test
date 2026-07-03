@@ -70,7 +70,6 @@ impl<'a> RenderPassDrawer<'a> {
     }
 
     pub fn draw(&self, mut render_pass: RenderPass<'_>, render_pipeline: &RenderPipeline) {
-        log::debug!("Will draw");
         render_pass.set_pipeline(render_pipeline);
         for (index, bind_group) in self.bind_groups.iter().enumerate() {
             render_pass.set_bind_group(index as u32, *bind_group, &[]);
@@ -87,11 +86,9 @@ impl<'a> RenderPassDrawer<'a> {
         let instance_range = self.instance_range.clone().unwrap_or(0..1);
 
         if let Some(indices) = &self.indices {
-            log::debug!("  Will draw indexed");
             render_pass.set_index_buffer(indices.buffer.slice(..), IndexFormat::Uint32);
             render_pass.draw_indexed(0..indices.length, 0, instance_range);
         } else if let Some(index_range) = &self.index_range {
-            log::debug!("  Will draw normal");
             render_pass.draw(index_range.clone(), instance_range);
         } else {
             log::error!("One of indices or index_range was not passed to RenderPass")

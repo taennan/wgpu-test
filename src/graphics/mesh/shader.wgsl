@@ -43,14 +43,13 @@ struct VertexOutput {
 fn vertex_main(input: VertexInput) -> VertexOutput {
     var out: VertexOutput;
     //var rotation = mat4x4(input.rotation_0, input.rotation_1, input.rotation_2, input.rotation_3);
-    out.position = camera.projection * vec4(input.position, 1.0);
+    out.position = camera.projection * vec4(input.xyz + input.position, 1.0);
     out.uv = _vertex_uv(input);
     return out;
 }
 
 @fragment
 fn fragment_main(input: VertexOutput) -> @location(0) vec4<f32> {
-    //return vec4<f32>(1.0, 1.0, 1.0, 1.0);
     return textureSample(atlas_diffuse, atlas_sampler, input.uv);
 }
 

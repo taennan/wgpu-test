@@ -2,7 +2,6 @@ use crate::{
     game::Mesh,
     graphics::{
         CameraRenderer, MeshInstanceBufferData, RendererUpdateInput, TextureAtlas,
-        bind_group::{BindGroupBuilder, BindGroupLayoutBuilder},
         buffer::MutBuffer,
         geometry::Vertex,
         pipeline::{CreatePipelineInput, PipelinePool, RenderPassDrawer},
@@ -10,10 +9,7 @@ use crate::{
     utils::paths,
 };
 use std::{collections::HashSet, mem, path::PathBuf, sync::LazyLock};
-use wgpu::{
-    BindGroup, BindingResource, BindingType, BufferUsages, Device, RenderPass, SamplerBindingType,
-    ShaderStages, TextureSampleType, TextureViewDimension,
-};
+use wgpu::{BindGroup, BufferUsages, RenderPass};
 
 #[derive(Debug)]
 pub struct MeshRenderer {
@@ -107,6 +103,12 @@ impl MeshRenderer {
                 );
             self.instance_buffer = Some(instance_buffer);
         }
+
+        log::debug!(
+            "Writing verts and indices {} {}",
+            vertices.len(),
+            indices.len()
+        );
 
         self.vertex_buffer.as_mut().map(|b| b.write(&vertices));
         self.index_buffer

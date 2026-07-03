@@ -25,7 +25,7 @@ impl App {
         systems_pool.add(CommandSubmitter);
         systems_pool.add(WindowPresenter);
 
-        log::debug!("Added systems");
+        log::info!("Added systems");
 
         Self {
             root_state: None,

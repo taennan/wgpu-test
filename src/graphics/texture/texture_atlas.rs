@@ -3,7 +3,7 @@ use crate::graphics::{
     buffer::{MutBuffer, MutBufferBuilder},
     texture::{buffer_data::AtlasItemMetaBufferData, image::AtlasImage, utils},
 };
-use glam::{UVec2, Vec2};
+use glam::UVec2;
 use guillotiere::{AllocId, Allocation, AtlasAllocator};
 use std::{
     collections::HashMap,
@@ -289,16 +289,11 @@ impl TextureAtlas {
             let increment_size = utils::uvec2_to_size(utils::average_uvec2(&image_sizes));
             let size = utils::uvec2_to_size(image.size);
 
-            log::debug!("Atlas increment size: {:?}", increment_size);
-            log::debug!("Allocation size {:?}", size);
-
             let mut allocation = self.allocator.allocate(size);
             while allocation.is_none() {
                 let new_size = self.allocator.size() + increment_size;
                 self.allocator.grow(new_size);
                 allocation = self.allocator.allocate(size);
-                log::debug!("  Allocator size: {:?}", self.allocator.size());
-                log::debug!("  Allocation: {:?}", allocation);
             }
 
             let allocation = allocation.expect("Image was not allocated");

@@ -130,10 +130,6 @@ impl GeometryPool {
         for model in models {
             let mesh = model.mesh;
             let index_offset = geometry.vertices.len() as u32;
-
-            log::debug!("Mesh data");
-            println!("positions.len() = {}", mesh.positions.len());
-            println!("texcoords.len() = {}", mesh.texcoords.len());
             println!("indices.len() = {}", mesh.indices.len());
 
             for i in 0..mesh.indices.len() {
@@ -165,7 +161,6 @@ impl GeometryPool {
                 .extend(mesh.indices.iter().map(|i| i + index_offset));
         }
 
-        log::debug!("LOADING GEOMETRY");
         for index in geometry.indices.iter() {
             let i = *index as usize;
             println!("{} {}", index, geometry.vertices[i].position.xyz());

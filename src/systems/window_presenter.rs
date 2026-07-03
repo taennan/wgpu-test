@@ -11,7 +11,6 @@ impl AppSystem for WindowPresenter {
             return;
         }
 
-        log::debug!("Will present");
         let current_surface_result = state.graphics.surface.get_current_texture();
         match current_surface_result {
             CurrentSurfaceTexture::Success(surface) => surface.present(),

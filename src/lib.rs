@@ -22,5 +22,5 @@ pub fn main() {
     event_loop.set_control_flow(ControlFlow::Poll);
     event_loop.run_app(&mut app).expect("Event loop run failed");
 
-    log::info!("Finished running wgpu-test");
+    log::info!("Fin!");
 }

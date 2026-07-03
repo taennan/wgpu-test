@@ -5,6 +5,7 @@ use crate::{
     systems::AppSystem,
 };
 use glam::UVec2;
+use std::iter;
 use wgpu::{CurrentSurfaceTexture, PollType};
 use winit::{event::WindowEvent, event_loop::ActiveEventLoop};
 
@@ -134,23 +135,18 @@ impl WindowRedrawer {
             );
         }
 
-        log::debug!("Will poll");
         state
             .graphics
             .device
             .poll(PollType::wait_indefinitely())
             .expect("Failed to poll device");
-        log::debug!("Did poll");
 
         /*
         state.graphics.surface_texture_view = Some(texture_view);
         state.graphics.command_buffers.push(encoder.finish());
          */
 
-        state
-            .graphics
-            .queue
-            .submit(std::iter::once(encoder.finish()));
+        state.graphics.queue.submit(iter::once(encoder.finish()));
 
         Ok(())
     }
