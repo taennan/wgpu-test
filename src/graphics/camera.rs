@@ -63,6 +63,7 @@ impl CameraRenderer {
 
     pub fn update(&mut self, camera: &Camera) {
         let buffer_data = self.projection_matrix(camera).to_cols_array_2d();
+
         self.buffer.write_async(
             &buffer_data,
             || {},
@@ -71,11 +72,7 @@ impl CameraRenderer {
     }
 
     fn projection_matrix(&self, camera: &Camera) -> Mat4 {
-        let view = Mat4::look_at_rh(
-            camera.position.into(),
-            camera.target.into(),
-            camera.up.into(),
-        );
+        let view = Mat4::look_at_rh(camera.position, camera.get_target(), camera.get_up());
         let projection = Mat4::perspective_rh(
             camera.field_of_vision_y,
             camera.aspect,

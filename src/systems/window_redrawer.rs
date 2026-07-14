@@ -31,17 +31,16 @@ impl AppSystem for WindowRedrawer {
 impl WindowRedrawer {
     fn resize(&self, state: &mut RootState) {
         let size = state.app.window.inner_size();
-        if size.width > 0 && size.height > 0 {
-            state.graphics.surface_config.width = size.width;
-            state.graphics.surface_config.height = size.height;
+        let size = UVec2::new(size.width, size.height);
+        if size.x > 0 && size.y > 0 {
+            state.graphics.surface_config.width = size.x;
+            state.graphics.surface_config.height = size.y;
             state
                 .graphics
                 .surface
                 .configure(&state.graphics.device, &state.graphics.surface_config);
-            state
-                .graphics
-                .sprite_renderer
-                .update_screen_size(UVec2::new(size.width, size.height));
+            state.game.camera.update_on_screen_resize(size);
+            state.graphics.sprite_renderer.update_screen_size(size);
             state.graphics.is_surface_configured = true;
         }
     }
@@ -100,10 +99,10 @@ impl WindowRedrawer {
         let mut renderer_update_input = RendererUpdateInput {
             texture_atlas: &mut state.graphics.texture_atlas,
             geometry: &mut state.graphics.geometry_pool,
-            pipelines: &mut state.graphics.pipeline_pool,
+            //pipelines: &mut state.graphics.pipeline_pool,
             device: &state.graphics.device,
-            queue: &mut state.graphics.queue,
-            encoder: &mut encoder,
+            //queue: &mut state.graphics.queue,
+            //encoder: &mut encoder,
         };
 
         state.graphics.camera_renderer.update(&state.game.camera);

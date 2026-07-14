@@ -32,6 +32,10 @@ impl GeometryPool {
         self.geometry.contains_key(path.as_ref())
     }
 
+    pub fn clear(&mut self) {
+        self.geometry.clear();
+    }
+
     pub fn remove(&mut self, path: &PathBuf) {
         self.geometry.remove(path);
     }

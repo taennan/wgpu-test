@@ -25,7 +25,6 @@ impl<'a> RenderPassFactory<'a> {
                 depth_slice: None,
                 ops: Operations {
                     store: StoreOp::Store,
-                    //load: LoadOp::Load,
                     load: LoadOp::Clear(Color {
                         r: 0.3,
                         g: 0.3,

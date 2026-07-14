@@ -383,6 +383,11 @@ impl TextureAtlas {
         queue.submit([]);
     }
 
+    pub fn clear(&mut self) {
+        self.items.clear();
+        self.allocator.clear();
+    }
+
     fn remove(&mut self, textures: &[PathBuf]) {
         for texture in textures {
             if let Some(item) = self.items.get_mut(texture) {
