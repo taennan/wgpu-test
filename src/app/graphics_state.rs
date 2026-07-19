@@ -47,6 +47,7 @@ impl GraphicsState {
             futures::executor::block_on(instance.request_adapter(&RequestAdapterOptions {
                 power_preference: PowerPreference::LowPower,
                 compatible_surface: Some(&surface),
+                apply_limit_buckets: false,
                 // NOTE: The guide has this as 'true'. Don't know why
                 force_fallback_adapter: false,
             }))
@@ -58,7 +59,6 @@ impl GraphicsState {
         let device_request =
             futures::executor::block_on(adapter.request_device(&DeviceDescriptor {
                 label: Some("Device One"),
-                // NOTE: For some reason, we need this feature to use map_async on Buffers
                 required_features: wgpu::Features::MAPPABLE_PRIMARY_BUFFERS,
                 experimental_features: wgpu::ExperimentalFeatures::disabled(),
                 required_limits: wgpu::Limits::default(),

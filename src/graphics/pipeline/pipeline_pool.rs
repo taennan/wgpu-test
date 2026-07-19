@@ -123,7 +123,11 @@ impl PipelinePool {
                     module: &shader,
                     //entry_point: None,
                     entry_point: Some("vertex_main"),
-                    buffers: input.vertex_buffer_layouts,
+                    buffers: &input
+                        .vertex_buffer_layouts
+                        .iter()
+                        .map(|layout| Some(layout.clone()))
+                        .collect::<Vec<_>>(),
                     compilation_options: PipelineCompilationOptions::default(),
                 },
                 fragment: Some(wgpu::FragmentState {

@@ -165,7 +165,7 @@ where
             .map_async(MapMode::Write, 0..staging.size(), move |buffer_result| {
                 match buffer_result {
                     Ok(_) => {
-                        let mut view = staging.get_mapped_range_mut(..);
+                        let mut view = staging.get_mapped_range_mut(..).unwrap();
                         view.copy_from_slice(bytemuck::cast_slice(&data));
                         mem::drop(view);
 

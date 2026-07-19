@@ -22,8 +22,7 @@ impl App {
         systems_pool.add(CameraMover);
         //systems_pool.add(TextureToggler);
         systems_pool.add(WindowRedrawer);
-        systems_pool.add(CommandSubmitter);
-        systems_pool.add(WindowPresenter);
+        //systems_pool.add(CommandSubmitter);
 
         log::info!("Added systems");
 

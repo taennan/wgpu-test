@@ -126,7 +126,7 @@ impl MutBuffer {
             .map_async(MapMode::Write, 0..inner.size(), move |buffer_result| {
                 match buffer_result {
                     Ok(_) => {
-                        let mut view = inner.get_mapped_range_mut(..);
+                        let mut view = inner.get_mapped_range_mut(..).unwrap();
                         view.copy_from_slice(bytemuck::cast_slice(&data));
                         mem::drop(view);
 

@@ -42,6 +42,7 @@ impl<'a> SurfaceConfigFactory<'a> {
             usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
             width: self.size.x,
             height: self.size.y,
+            color_space: wgpu::SurfaceColorSpace::Auto,
             format: *surface_format,
             alpha_mode: *surface_alpha_mode,
             present_mode: *surface_present_mode,

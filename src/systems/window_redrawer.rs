@@ -72,11 +72,16 @@ impl WindowRedrawer {
             CurrentSurfaceTexture::Occluded | CurrentSurfaceTexture::Timeout => {
                 return Ok(());
             }
-            _ => {
-                log::error!(
-                    "Getting current surface texture failed {:?}",
-                    current_surface_result
-                );
+            CurrentSurfaceTexture::Lost => {
+                log::warn!("Surface texture lost");
+                return Ok(());
+            }
+            CurrentSurfaceTexture::Outdated => {
+                log::warn!("Surface texture outdated. Need to call Surface::configure again");
+                return Ok(());
+            }
+            CurrentSurfaceTexture::Validation => {
+                log::warn!("Surface texture validation failed");
                 return Ok(());
             }
         };
@@ -146,6 +151,8 @@ impl WindowRedrawer {
          */
 
         state.graphics.queue.submit(iter::once(encoder.finish()));
+        state.app.window.pre_present_notify();
+        state.graphics.queue.present(current_texture);
 
         Ok(())
     }

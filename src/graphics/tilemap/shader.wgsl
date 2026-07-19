@@ -25,33 +25,16 @@ struct VertexInput {
     // Per vertex
     @location(0) tile_pos: vec3<u32>,
     @location(1) corner: u32,
-    /*
-     * This field encodes either the rgba colour of the tile, or the atlas data
-     * It will be in the following form if encoding atlas data:
-     * - 0bxxx (unused)
-     * - 0bxxx (atlas item division x)
-     * - 0bxxx (atlas item division y)
-     * - 0bxx1 (is atlas item if least significant bit is 1)
-     * It will be the following if raw rgba data, with all items capped at 255 in decimal:
-     * - 0bxxx (r)
-     * - 0bxxx (g)
-     * - 0bxxx (b)
-     * - 0bxx0 (a, is rgba data if most significant bit is 0)
-     *
-     * We could probably compress this even more by packing 2 u16's into a single channel
-     * But that should only be done a lot later...
-     */
-    @location(2) colour: vec4<u32>,
+    @location(2) colour: vec2<u32>,
     // Per instance
     @location(3) map_pos: vec3<f32>,
     @location(4) tile_size: vec2<f32>,
     @location(5) atlas_item_index: u32,
-
 };
 
 struct VertexOutput {
     @builtin(position) position: vec4<f32>,
-    @location(0) colour: vec4<u32>,
+    @location(0) colour: vec2<u32>,
     @location(1) corner: u32,
     @location(2) atlas_item_index: u32,
 };
@@ -87,26 +70,27 @@ fn _vertex_position(tile_pos: u32, tile_size: f32, extend_to_end: bool, map_pos:
 
 @fragment
 fn fragment_main(vertex: VertexOutput) -> @location(0) vec4<f32> {
-    let rgba_sample = _rgba_sample(vertex.colour);
-    let atlas_uv = _atlas_uv(vertex.atlas_item_index, vertex.colour.g, vertex.colour.b, vertex.corner);
+    let colour = colour_data_from_vec2(vertex.colour);
+
+    let rgba_sample = vec4(colour.r, colour.g, colour.b, colour.a);
+    let atlas_uv = _atlas_uv(vertex.atlas_item_index, colour.atlas_item_division_x, colour.atlas_item_division_y, vertex.corner);
     let atlas_sample = textureSample(atlas_diffuse, atlas_sampler, atlas_uv);
+    let blended_sample = vec4(rgba_sample.rgb, atlas_sample.a);
 
-    let is_atlas_data = (vertex.colour.a & 1) > 0;
-    let sample = select(rgba_sample, atlas_sample, is_atlas_data);
-    return sample;
-}
-
-fn _rgba_sample(rgba: vec4<u32>) -> vec4<f32> {
-    return vec4(
-        _u32_to_f32_colour_channel(rgba.r),
-        _u32_to_f32_colour_channel(rgba.g),
-        _u32_to_f32_colour_channel(rgba.b),
-        _u32_to_f32_colour_channel(rgba.a << 1)
+    let sample = select(
+        blended_sample,
+        select(
+            atlas_sample,
+            select(
+                rgba_sample,
+                vec4(0.0),
+                !colour.modulate_disabled
+            ),
+            !colour.atlas_disabled
+        ),
+        !colour.atlas_disabled && !colour.modulate_disabled
     );
-}
-
-fn _u32_to_f32_colour_channel(channel: u32) -> f32 {
-    return f32(channel) / 255.0;
+    return sample;
 }
 
 fn _atlas_uv(atlas_item_index: u32, division_x: u32, division_y: u32, corner: u32) -> vec2<f32> {
@@ -139,4 +123,53 @@ fn _atlas_to_uv_coords(atlas_coords: vec2<u32>) -> vec2<f32> {
         f32(atlas_coords.x) / f32(atlas_size.x),
         f32(atlas_coords.y) / f32(atlas_size.y),
     );
+}
+
+struct ColourData {
+    atlas_disabled: bool,
+    modulate_disabled: bool,
+    atlas_item_division_x: u32,
+    atlas_item_division_y: u32,
+    r: f32,
+    g: f32,
+    b: f32,
+    a: f32,
+};
+
+/**
+ * ColourData can be stored as a vec2<u32> with the following layout, where each section takes 8 bits
+ * - metadata
+ * - metadata
+ * - atlas item division x
+ * - atlas item division y
+ * - red channel
+ * - green channel
+ * - blue channel
+ * - alpha channel
+ */
+fn colour_data_from_vec2(input: vec2<u32>) -> ColourData {
+    let metadata = slice_u32(input.x, 0u, 16u);
+    let max_rgba_channel = 255.0;
+
+    var colour: ColourData;
+    colour.atlas_disabled = (metadata & 1u) != 0u;
+    colour.modulate_disabled = ((metadata >> 1u) & 1u) != 0u;
+    colour.atlas_item_division_x = slice_u32(input.x, 16u, 24u);
+    colour.atlas_item_division_y = slice_u32(input.x, 24u, 32u);
+    colour.r = f32(slice_u32(input.y, 0u, 8u)) / max_rgba_channel;
+    colour.g = f32(slice_u32(input.y, 8u, 16u)) / max_rgba_channel;
+    colour.b = f32(slice_u32(input.y, 16u, 24u)) / max_rgba_channel;
+    colour.a = f32(slice_u32(input.y, 24u, 32u)) / max_rgba_channel;
+
+    return colour;
+}
+
+fn slice_u32(value: u32, start: u32, end: u32) -> u32 {
+    let length = 32u;
+
+    let low_bits_filtered = value >> start;
+    let high_bits_filtered = low_bits_filtered << (length - end);
+    let bits_shifted_to_end = high_bits_filtered >> (length - end);
+
+    return bits_shifted_to_end;
 }

@@ -1,4 +1,3 @@
-use glam::UVec2;
 use std::collections::HashSet;
 
 pub struct SmartBuffer<T, K> {
@@ -188,6 +187,7 @@ where
     }
 }
 
+#[cfg(test)]
 mod tests {
     use super::*;
     use bytemuck;
@@ -208,6 +208,7 @@ mod tests {
             Box::new(mock_bytes_getter),
             Box::new(mock_index_getter),
         );
+        assert_eq!(buffer.items.capacity(), 10);
     }
 
     #[test]
