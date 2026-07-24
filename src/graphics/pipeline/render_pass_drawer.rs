@@ -10,11 +10,6 @@ pub struct RenderPassDrawer<'a> {
     instance_range: Option<Range<u32>>,
 }
 
-pub struct RenderPassDrawInput<'a> {
-    pub render_pass: &'a mut RenderPass<'a>,
-    pub render_pipeline: &'a RenderPipeline,
-}
-
 struct RenderPassIndices<'a> {
     buffer: &'a Buffer,
     length: u32,

@@ -15,15 +15,18 @@ use crate::{
 };
 
 pub struct PipelinePool {
+    pub is_mesh_disabled: bool,
+    pub is_sprite_disabled: bool,
+    pub is_tilemap_disabled: bool,
     mesh: RenderPipeline,
-    sprite: RenderPipeline,
-    tilemap: RenderPipeline,
+    //sprite: RenderPipeline,
+    //tilemap: RenderPipeline,
 }
 
-pub struct GlobalBindGroupLayouts {
-    pub camera: BindGroupLayout,
-    pub screen_size: BindGroupLayout,
-    pub atlas: BindGroupLayout,
+pub struct GlobalBindGroupLayouts<'a> {
+    pub camera: &'a BindGroupLayout,
+    pub screen_size: &'a BindGroupLayout,
+    pub atlas: &'a BindGroupLayout,
 }
 
 impl PipelinePool {
@@ -33,13 +36,20 @@ impl PipelinePool {
         device: &Device,
     ) -> Self {
         Self {
+            is_mesh_disabled: false,
+            is_sprite_disabled: true,
+            is_tilemap_disabled: true,
             mesh: Self::create_pipeline(
                 "mesh",
                 texture_format,
-                &[bind_group_layouts.camera, bind_group_layouts.atlas.clone()],
+                &[
+                    bind_group_layouts.camera.clone(),
+                    bind_group_layouts.atlas.clone(),
+                ],
                 &[Vertex::LAYOUT, MeshInstanceBufferData::LAYOUT],
                 device,
             ),
+            /*
             sprite: Self::create_pipeline(
                 "sprite",
                 texture_format,
@@ -63,6 +73,7 @@ impl PipelinePool {
                 ],
                 device,
             ),
+            */
         }
     }
 
@@ -85,14 +96,13 @@ impl PipelinePool {
             source: ShaderSource::Wgsl(shader_source_text.into()),
         });
 
-        let layouts = bind_group_layouts
-            .iter()
-            .map(|l| Some(l))
-            .collect::<Vec<_>>();
         log::debug!("Creating pipeline layout for {}", name);
         let render_pipeline_layout = device.create_pipeline_layout(&PipelineLayoutDescriptor {
             label: Some(&format!("{} Pipeline Layout", name)),
-            bind_group_layouts: &layouts,
+            bind_group_layouts: &bind_group_layouts
+                .iter()
+                .map(|l| Some(l))
+                .collect::<Vec<_>>(),
             immediate_size: 0,
         });
         let render_pipeline = device.create_render_pipeline(&RenderPipelineDescriptor {
@@ -146,10 +156,12 @@ impl PipelinePool {
     }
 
     pub fn sprite(&self) -> &RenderPipeline {
-        &self.sprite
+        &self.mesh
+        // &self.sprite
     }
 
     pub fn tilemap(&self) -> &RenderPipeline {
-        &self.tilemap
+        &self.mesh
+        // &self.tilemap
     }
 }

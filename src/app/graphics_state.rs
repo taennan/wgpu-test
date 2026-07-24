@@ -1,12 +1,16 @@
 use crate::{
     error::*,
     graphics::{
-        CameraRenderer, MeshRenderer, SpriteRenderer, geometry::GeometryPool,
-        pipeline::PipelinePool, surface::SurfaceConfigFactory, texture::TextureAtlas,
+        CameraRenderer, MeshRenderer, SpriteRenderer,
+        geometry::GeometryPool,
+        pipeline::{GlobalBindGroupLayouts, PipelinePool},
+        screen_size::GpuScreenSize,
+        surface::SurfaceConfigFactory,
+        texture::TextureAtlas,
     },
 };
 use glam::UVec2;
-use std::{rc::Rc, sync::Arc};
+use std::sync::Arc;
 use wgpu::{
     CommandBuffer, Device, DeviceDescriptor, Instance, InstanceDescriptor, PowerPreference, Queue,
     RequestAdapterOptions, Surface, SurfaceConfiguration,
@@ -17,11 +21,12 @@ pub struct GraphicsState {
     pub surface: Surface<'static>,
     pub surface_config: SurfaceConfiguration,
     pub is_surface_configured: bool,
-    pub device: Rc<Device>,
+    pub device: Device,
     pub queue: Queue,
     pub texture_atlas: TextureAtlas,
     pub geometry_pool: GeometryPool,
-    pub pipeline_pool: PipelinePool,
+    pub pipelines: PipelinePool,
+    pub screen_size: GpuScreenSize,
     pub camera_renderer: CameraRenderer,
     pub mesh_renderer: MeshRenderer,
     pub sprite_renderer: SpriteRenderer,
@@ -67,16 +72,26 @@ impl GraphicsState {
             }))
             .map_err(|_| Error::SurfaceCreationFailed)?;
 
-        let device = Rc::new(device_request.0);
-        let queue = device_request.1;
+        let (device, queue) = device_request;
+
+        let screen_size = GpuScreenSize::new(&device);
+        let camera_renderer = CameraRenderer::new(&device);
 
         let texture_atlas = TextureAtlas::new(&device);
         let geometry_pool = GeometryPool::new();
-        let mut pipeline_pool = PipelinePool::new(surface_config.format, device.clone());
 
-        let camera_renderer = CameraRenderer::new(&device);
-        let mesh_renderer = MeshRenderer::new(&camera_renderer, &texture_atlas, &mut pipeline_pool);
-        let sprite_renderer = SpriteRenderer::new(&texture_atlas, &mut pipeline_pool, &device);
+        let pipelines = PipelinePool::new(
+            GlobalBindGroupLayouts {
+                camera: camera_renderer.bind_group_layout(),
+                screen_size: screen_size.bind_group_layout(),
+                atlas: texture_atlas.bind_group_layout(),
+            },
+            surface_config.format,
+            &device,
+        );
+
+        let mesh_renderer = MeshRenderer::new();
+        let sprite_renderer = SpriteRenderer::new();
 
         Ok(Self {
             surface,
@@ -85,7 +100,8 @@ impl GraphicsState {
             queue,
             texture_atlas,
             geometry_pool,
-            pipeline_pool,
+            pipelines,
+            screen_size,
             camera_renderer,
             mesh_renderer,
             sprite_renderer,

@@ -4,7 +4,7 @@ pub mod camera;
 pub mod geometry;
 pub mod mesh;
 pub mod pipeline;
-mod screen_size;
+pub mod screen_size;
 pub mod sprite;
 pub mod surface;
 pub mod texture;

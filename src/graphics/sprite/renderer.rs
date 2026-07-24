@@ -2,24 +2,16 @@ use crate::{
     game::Sprite,
     graphics::{
         RendererUpdateInput, SpriteInstanceBufferData,
-        bind_group::{BindGroupBuilder, BindGroupLayoutBuilder},
         buffer::mut_buffer::MutBuffer,
         geometry::Vertex,
-        pipeline::{CreatePipelineInput, PipelinePool, RenderPassDrawer},
-        texture::TextureAtlas,
+        pipeline::{PipelinePool, RenderPassDrawer},
     },
-    utils::paths,
 };
-use glam::UVec2;
-use std::{collections::HashSet, mem, path::PathBuf, sync::LazyLock};
-use wgpu::{
-    BindGroup, BindingResource, BindingType, BufferBindingType, BufferUsages, Device, RenderPass,
-    ShaderStages,
-};
+use std::{collections::HashSet, mem};
+use wgpu::{BindGroup, BufferUsages, RenderPass};
 
+#[derive(Default)]
 pub struct SpriteRenderer {
-    screen_size_buffer: MutBuffer,
-    screen_size_bind_group: BindGroup,
     vertex_buffer: Option<MutBuffer>,
     instance_buffer: Option<MutBuffer>,
     index_buffer: Option<MutBuffer>,
@@ -28,61 +20,11 @@ pub struct SpriteRenderer {
 }
 
 impl SpriteRenderer {
-    const SHADER_PATH: LazyLock<PathBuf> = LazyLock::new(|| paths::shader("sprite"));
-
-    pub fn new(atlas: &TextureAtlas, pipelines: &mut PipelinePool, device: &Device) -> Self {
-        let pipeline_key = &*Self::SHADER_PATH;
-        if !pipelines.has(pipeline_key) {
-            let screen_size_bind_group_layout = BindGroupLayoutBuilder::new()
-                .entry(
-                    ShaderStages::VERTEX,
-                    BindingType::Buffer {
-                        ty: BufferBindingType::Uniform,
-                        has_dynamic_offset: false,
-                        min_binding_size: None,
-                    },
-                )
-                .build(device);
-            pipelines.load(&CreatePipelineInput {
-                shader_path: pipeline_key,
-                bind_group_layouts: &[
-                    screen_size_bind_group_layout,
-                    atlas.bind_group_layout().clone(),
-                ],
-                vertex_buffer_layouts: &[Vertex::LAYOUT, SpriteInstanceBufferData::LAYOUT],
-            });
-        }
-
-        let screen_size_bind_group_layout = pipelines
-            .get(pipeline_key)
-            .and_then(|p| p.bind_group_layouts.get(0))
-            .expect("Sprite bind group layouts not loaded");
-        let screen_size_buffer = MutBuffer::builder()
-            .name("Sprite Aspect Buffer")
-            .usages(BufferUsages::VERTEX | BufferUsages::UNIFORM | BufferUsages::MAP_WRITE)
-            .build(mem::size_of::<UVec2>() as u64, device);
-        let screen_size_bind_group = BindGroupBuilder::new()
-            .entry(BindingResource::Buffer(
-                screen_size_buffer.buffer().as_entire_buffer_binding(),
-            ))
-            .build(screen_size_bind_group_layout, device);
-
-        Self {
-            screen_size_buffer,
-            screen_size_bind_group,
-            vertex_buffer: None,
-            instance_buffer: None,
-            index_buffer: None,
-            total_instances: 0,
-            total_indices: 0,
-        }
+    pub fn new() -> Self {
+        Self::default()
     }
 
-    pub fn update_screen_size(&mut self, screen_size: UVec2) {
-        self.screen_size_buffer.write(&[screen_size]);
-    }
-
-    pub fn update(&mut self, sprites: &[Sprite], input: &mut RendererUpdateInput) {
+    pub fn update(&mut self, sprites: &[Sprite], input: &RendererUpdateInput) {
         if !self.is_inited() && sprites.is_empty() {
             return;
         }
@@ -155,6 +97,7 @@ impl SpriteRenderer {
     pub fn render<'a, 'b>(
         &'a self,
         atlas_bind_group: &BindGroup,
+        screen_size_bind_group: &BindGroup,
         render_pass: RenderPass<'_>,
         pipelines: &'a PipelinePool,
     ) {
@@ -169,18 +112,13 @@ impl SpriteRenderer {
             self.index_buffer.as_ref().expect(error_message),
         );
 
-        let pipeline = &pipelines
-            .get(&*Self::SHADER_PATH)
-            .expect("Sprite pipeline was not loaded")
-            .pipeline;
-
         RenderPassDrawer::new()
-            .bind_group(&self.screen_size_bind_group)
+            .bind_group(screen_size_bind_group)
             .bind_group(&atlas_bind_group)
             .vertex_buffer(vertex_buffer.buffer())
             .vertex_buffer(instance_buffer.buffer())
             .index_buffer(index_buffer.buffer(), self.total_indices as u32)
             .instance_range(0..self.total_instances as u32)
-            .draw(render_pass, &pipeline);
+            .draw(render_pass, pipelines.sprite());
     }
 }

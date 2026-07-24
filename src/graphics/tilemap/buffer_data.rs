@@ -31,7 +31,7 @@ impl TilemapVertexBufferData {
     }
 
     const TILE_POSITION_OFFSET: u64 = 0;
-    const TILE_POSITION_FORMAT: VertexFormat = VertexFormat::Uint32x3;
+    const TILE_POSITION_FORMAT: VertexFormat = VertexFormat::Uint32x2;
 
     const CORNER_OFFSET: u64 = Self::TILE_POSITION_OFFSET + Self::TILE_POSITION_FORMAT.size();
     const CORNER_FORMAT: VertexFormat = VertexFormat::Uint32;
@@ -132,8 +132,6 @@ pub struct TilemapInstanceBufferData {
 }
 
 impl TilemapInstanceBufferData {
-    pub const SIZE: u64 = mem::size_of::<Self>() as u64;
-
     pub fn new(map_position: Vec3, tile_size: Vec2, atlas_item_index: u32) -> Self {
         Self {
             map_position,

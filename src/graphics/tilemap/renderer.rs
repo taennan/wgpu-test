@@ -1,18 +1,16 @@
 use crate::{
     game::Mesh,
     graphics::{
-        MeshInstanceBufferData, RendererUpdateInput, TextureAtlas,
+        MeshInstanceBufferData, RendererUpdateInput,
         buffer::MutBuffer,
         geometry::Vertex,
-        pipeline::{CreatePipelineInput, PipelinePool, RenderPassDrawer},
-        screen_size::GpuScreenSize,
+        pipeline::{PipelinePool, RenderPassDrawer},
     },
-    utils::paths,
 };
-use std::{collections::HashSet, mem, path::PathBuf, sync::LazyLock};
+use std::{collections::HashSet, mem};
 use wgpu::{BindGroup, BufferUsages, RenderPass};
 
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct TilemapRenderer {
     vertex_buffer: Option<MutBuffer>,
     instance_buffer: Option<MutBuffer>,
@@ -23,33 +21,8 @@ pub struct TilemapRenderer {
 }
 
 impl TilemapRenderer {
-    const SHADER_PATH: LazyLock<PathBuf> = LazyLock::new(|| paths::shader("heightmap_editor"));
-
-    pub fn new(
-        screen_size: &GpuScreenSize,
-        atlas: &TextureAtlas,
-        pipelines: &mut PipelinePool,
-    ) -> Self {
-        let pipeline_key = &*Self::SHADER_PATH;
-        if !pipelines.has(pipeline_key) {
-            pipelines.load(&CreatePipelineInput {
-                shader_path: pipeline_key,
-                bind_group_layouts: &[
-                    screen_size.bind_group_layout().clone(),
-                    atlas.bind_group_layout().clone(),
-                ],
-                vertex_buffer_layouts: &[Vertex::LAYOUT, MeshInstanceBufferData::LAYOUT],
-            });
-        }
-
-        Self {
-            vertex_buffer: None,
-            instance_buffer: None,
-            index_buffer: None,
-            is_inited: false,
-            total_instances: 0,
-            total_indices: 0,
-        }
+    pub fn new() -> Self {
+        Self::default()
     }
 
     pub fn update(&mut self, meshes: &[Mesh], input: &mut RendererUpdateInput) {
@@ -139,11 +112,6 @@ impl TilemapRenderer {
             _ => return,
         };
 
-        let pipeline = &pipelines
-            .get(&*Self::SHADER_PATH)
-            .expect("Mesh pipeline was not loaded")
-            .pipeline;
-
         RenderPassDrawer::new()
             .bind_group(camera_bind_group)
             .bind_group(atlas_bind_group)
@@ -151,6 +119,6 @@ impl TilemapRenderer {
             .vertex_buffer(instance_buffer.buffer())
             .index_buffer(index_buffer.buffer(), self.total_indices as u32)
             .instance_range(0..self.total_instances as u32)
-            .draw(render_pass, &pipeline);
+            .draw(render_pass, pipelines.tilemap());
     }
 }

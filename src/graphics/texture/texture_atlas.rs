@@ -136,7 +136,7 @@ impl TextureAtlas {
         };
 
         let texture = device.create_texture(&TextureDescriptor {
-            label: Some("Diffuse Texture Atlas"),
+            label: Some("Diffuse TextureAtlas"),
             size: extent,
             mip_level_count: 1,
             sample_count: 1,
@@ -149,7 +149,7 @@ impl TextureAtlas {
         });
 
         let texture_view = texture.create_view(&TextureViewDescriptor {
-            label: Some("TextureAtlas Texture View"),
+            label: Some("Diffuse TextureAtlas Texture View"),
             ..Default::default()
         });
 

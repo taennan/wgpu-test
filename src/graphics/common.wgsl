@@ -1,8 +1,13 @@
 //
-// Tilemap Shader
+// Common Shader Utils
+// Just copy paste into shaders for now
 //
 
 @group(0) @binding(0) var<uniform> screen_size: vec2<u32>;
+
+//
+// Atlas
+//
 
 @group(1) @binding(0) var atlas_diffuse: texture_2d<f32>;
 @group(1) @binding(1) var atlas_sampler: sampler;
@@ -15,29 +20,6 @@ struct AtlasItem {
     // X and Y must not be zero!!
     divisions: vec2<u32>,
 }
-
-const NW_CORNER = 0;
-const NE_CORNER = 1;
-const SW_CORNER = 2;
-const SE_CORNER = 3;
-
-struct VertexInput {
-    // Per vertex
-    @location(0) tile_pos: vec2<u32>,
-    @location(1) corner: u32,
-    @location(2) colour: vec2<u32>,
-    // Per instance
-    @location(3) map_pos: vec3<f32>,
-    @location(4) tile_size: vec2<f32>,
-    @location(5) atlas_item_index: u32,
-};
-
-struct VertexOutput {
-    @builtin(position) position: vec4<f32>,
-    @location(0) @interpolate(flat) colour: vec2<u32>,
-    @location(1) @interpolate(flat) corner: u32,
-    @location(2) @interpolate(flat) atlas_item_index: u32,
-};
 
 @vertex
 fn vertex_main(input: VertexInput) -> VertexOutput {
@@ -57,24 +39,26 @@ fn vertex_main(input: VertexInput) -> VertexOutput {
     return out;
 }
 
-fn _vertex_position(tile_pos: u32, tile_size: f32, extend_to_end: bool, map_pos: f32, screen_dimension: u32) -> f32 {
-    let normalized_screen = 1.0 / f32(screen_dimension);
-    let normalized_map = map_pos * normalized_screen;
-    let normalized_tile = tile_size * normalized_screen;
-
-    let vertex = f32(tile_pos) * normalized_tile + select(0.0, normalized_tile, extend_to_end);
-    let normalized_vertex = vertex * normalized_screen;
-
-    return normalized_map + normalized_vertex;
+struct AtlasSampleInput {
+    packed_colour: vec2<u32>,
+    item_index: u32,
+    padding: u32,
+    division_offset: vec2<f32>,
 }
 
-@fragment
-fn fragment_main(vertex: VertexOutput) -> @location(0) vec4<f32> {
-    let colour = colour_data_from_vec2(vertex.colour);
+fn atlas_sample(input: AtlasSampleInput) {
+    let colour = colour_data_from_vec2(input.packed_colour);
+
+    var atlas_uv_input: AtlasUvInput;
+    atlas_uv_input.item_index = input.item_index;
+    atlas_uv_input.padding = input.padding;
+    atlas_uv_input.division_x = colour.atlas_item_division_x;
+    atlas_uv_input.division_y = colour.atlas_item_division_y;
+    atlas_uv_input.division_offset = input.division_offset;
+    let atlas_uv = atlas_uv(atlas_uv_input);
+    let atlas_sample = textureSample(atlas_diffuse, atlas_sampler, atlas_uv);
 
     let rgba_sample = vec4(colour.r, colour.g, colour.b, colour.a);
-    let atlas_uv = _atlas_uv(vertex.atlas_item_index, colour.atlas_item_division_x, colour.atlas_item_division_y, vertex.corner);
-    let atlas_sample = textureSample(atlas_diffuse, atlas_sampler, atlas_uv);
     let blended_sample = vec4(rgba_sample.rgb, atlas_sample.a);
 
     let sample = select(
@@ -93,31 +77,32 @@ fn fragment_main(vertex: VertexOutput) -> @location(0) vec4<f32> {
     return sample;
 }
 
-fn _atlas_uv(atlas_item_index: u32, division_x: u32, division_y: u32, corner: u32) -> vec2<f32> {
-    let corner_offset = array<vec2<f32>, 4>(
-        vec2(0.0, 0.0),
-        vec2(1.0, 0.0),
-        vec2(0.0, 1.0),
-        vec2(1.0, 1.0)
-    )[corner];
+struct AtlasUvInput {
+    item_index: u32,
+    padding: u32,
+    division_x: u32,
+    division_y: u32,
+    division_offset: vec2<f32>,
+}
 
-    let atlas_item = atlas_items[atlas_item_index];
-    let padding_wh = _atlas_to_uv_coords(vec2(atlas_padding, atlas_padding));
+fn atlas_uv(input: AtlasUvInput) -> vec2<f32> {
+    let atlas_item = atlas_items[input.item_index];
+    let padding_wh = atlas_to_uv_coords(vec2(input.padding, input.padding));
 
     let total_atlas_item_padding = padding_wh * vec2(f32(atlas_item.position.x + 1), f32(atlas_item.position.x + 1));
-    let atlas_item_uv = _atlas_to_uv_coords(atlas_item.position) + total_atlas_item_padding;
-    let atlas_item_wh = _atlas_to_uv_coords(atlas_item.size);
+    let atlas_item_uv = atlas_to_uv_coords(atlas_item.position) + total_atlas_item_padding;
+    let atlas_item_wh = atlas_to_uv_coords(atlas_item.size);
 
     let division_wh = atlas_item_wh / vec2(f32(atlas_item.divisions.x), f32(atlas_item.divisions.y));
     let division_uv = vec2<f32>(
-        (division_wh.x * corner_offset.x) + (division_wh.x * f32(division_x)),
-        (division_wh.y * corner_offset.y) + (division_wh.y * f32(division_y))
+        (division_wh.x * input.division_offset.x) + (division_wh.x * f32(input.division_x)),
+        (division_wh.y * input.division_offset.y) + (division_wh.y * f32(input.division_y))
     );
 
     return division_uv;
 }
 
-fn _atlas_to_uv_coords(atlas_coords: vec2<u32>) -> vec2<f32> {
+fn atlas_to_uv_coords(atlas_coords: vec2<u32>) -> vec2<f32> {
     let atlas_size = textureDimensions(atlas_diffuse);
     return vec2(
         f32(atlas_coords.x) / f32(atlas_size.x),

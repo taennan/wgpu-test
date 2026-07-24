@@ -40,7 +40,7 @@ impl WindowRedrawer {
                 .surface
                 .configure(&state.graphics.device, &state.graphics.surface_config);
             state.game.camera.update_on_screen_resize(size);
-            state.graphics.sprite_renderer.update_screen_size(size);
+            state.graphics.screen_size.set_value(size);
             state.graphics.is_surface_configured = true;
         }
     }
@@ -102,40 +102,38 @@ impl WindowRedrawer {
                 });
 
         let mut renderer_update_input = RendererUpdateInput {
-            texture_atlas: &mut state.graphics.texture_atlas,
-            geometry: &mut state.graphics.geometry_pool,
-            //pipelines: &mut state.graphics.pipeline_pool,
+            texture_atlas: &state.graphics.texture_atlas,
+            geometry: &state.graphics.geometry_pool,
             device: &state.graphics.device,
-            //queue: &mut state.graphics.queue,
-            //encoder: &mut encoder,
         };
 
         state.graphics.camera_renderer.update(&state.game.camera);
-        state
-            .graphics
-            .mesh_renderer
-            .update(&state.game.meshes, &mut renderer_update_input);
-        state
-            .graphics
-            .sprite_renderer
-            .update(&state.game.sprites, &mut renderer_update_input);
 
         // Must wrap in blocks so that we can mutably borrow encoder later
-        {
+        if !state.graphics.pipelines.is_mesh_disabled {
+            state
+                .graphics
+                .mesh_renderer
+                .update(&state.game.meshes, &mut renderer_update_input);
             let mut render_pass_factory = RenderPassFactory::new(&texture_view, &mut encoder);
             state.graphics.mesh_renderer.render(
                 state.graphics.camera_renderer.bind_group(),
                 state.graphics.texture_atlas.bind_group(),
                 render_pass_factory.start(),
-                &mut state.graphics.pipeline_pool,
+                &mut state.graphics.pipelines,
             );
         }
-        {
+        if !state.graphics.pipelines.is_sprite_disabled {
+            state
+                .graphics
+                .sprite_renderer
+                .update(&state.game.sprites, &mut renderer_update_input);
             let mut render_pass_factory = RenderPassFactory::new(&texture_view, &mut encoder);
             state.graphics.sprite_renderer.render(
                 state.graphics.texture_atlas.bind_group(),
+                state.graphics.screen_size.bind_group(),
                 render_pass_factory.secondary(),
-                &mut state.graphics.pipeline_pool,
+                &mut state.graphics.pipelines,
             );
         }
 

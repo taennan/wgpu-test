@@ -54,7 +54,7 @@ impl GpuScreenSize {
         &self._bind_group_layout
     }
 
-    pub fn set_screen_size<T>(&mut self, value: T)
+    pub fn set_value<T>(&mut self, value: T)
     where
         T: Into<UVec2>,
     {
