@@ -8,7 +8,7 @@ pub struct Sprite {
     pub mesh_path: PathBuf,
     pub texture_path: PathBuf,
     #[serde(skip)]
-    pub texture_atlas_item_index: Option<u32>,
+    pub texture_atlas_item_index: Option<u16>,
     #[serde(default = "Sprite::default_position")]
     pub position: Vec3,
     #[serde(default = "Sprite::default_scale")]

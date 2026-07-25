@@ -36,7 +36,7 @@ pub struct TextureAtlas {
 struct AtlasItem {
     pub allocation_id: AllocId,
     pub total_dependants: u32,
-    pub buffer_index: u32,
+    pub buffer_index: u16,
     pub size: UVec2,
     pub position: UVec2,
     pub divisions: UVec2,
@@ -166,7 +166,7 @@ impl TextureAtlas {
         let bind_group_layout = BindGroupLayoutBuilder::new()
             .name("TextureAtlas Bind Group Layout")
             .entry(
-                ShaderStages::VERTEX_FRAGMENT,
+                ShaderStages::FRAGMENT,
                 BindingType::Texture {
                     sample_type: TextureSampleType::Float { filterable: true },
                     view_dimension: TextureViewDimension::D2,
@@ -178,7 +178,7 @@ impl TextureAtlas {
                 BindingType::Sampler(SamplerBindingType::Filtering),
             )
             .entry(
-                ShaderStages::VERTEX,
+                ShaderStages::FRAGMENT,
                 BindingType::Buffer {
                     ty: BufferBindingType::Uniform,
                     has_dynamic_offset: false,
@@ -186,7 +186,7 @@ impl TextureAtlas {
                 },
             )
             .entry(
-                ShaderStages::VERTEX,
+                ShaderStages::FRAGMENT,
                 BindingType::Buffer {
                     ty: BufferBindingType::Storage { read_only: true },
                     has_dynamic_offset: false,
@@ -222,13 +222,13 @@ impl TextureAtlas {
         (bind_group_layout, bind_group, atlas_items_buffer)
     }
 
-    pub fn atlas_item_index<P>(&self, texture_path: P) -> Option<u32>
+    pub fn atlas_item_index<P>(&self, texture_path: P) -> Option<u16>
     where
         P: AsRef<Path>,
     {
         self.items
             .get(texture_path.as_ref())
-            .map(|item| item.buffer_index)
+            .map(|item| item.buffer_index as u16)
     }
 
     pub fn texture_view(&self) -> &TextureView {
@@ -364,7 +364,7 @@ impl TextureAtlas {
             .values_mut()
             .enumerate()
             .map(|(index, item)| {
-                item.buffer_index = index as u32;
+                item.buffer_index = index as u16;
                 let atlas_item_meta =
                     AtlasItemMetaBufferData::new(item.position, item.size, item.divisions);
                 atlas_item_meta

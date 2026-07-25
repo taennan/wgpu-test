@@ -1,3 +1,4 @@
+use std::mem;
 use wgpu::{VertexAttribute, VertexBufferLayout, VertexFormat, VertexStepMode};
 
 pub struct VertexBufferLayoutBuilder {
@@ -40,11 +41,14 @@ impl VertexBufferLayoutBuilder {
         self
     }
 
-    pub fn build(&self) -> VertexBufferLayout<'static> {
-        let array_stride = self.last_attribute_end_size();
+    pub fn build<T>(
+        &self,
+        shader_location_start: u32,
+        step_mode: VertexStepMode,
+    ) -> VertexBufferLayout<'static> {
         VertexBufferLayout {
-            array_stride,
-            step_mode: self.step_mode.unwrap_or(VertexStepMode::Vertex),
+            array_stride: mem::size_of::<T>() as u64,
+            step_mode: step_mode,
             attributes: &self.attributes.clone(),
         }
     }

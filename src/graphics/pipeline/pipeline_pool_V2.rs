@@ -7,8 +7,7 @@ use wgpu::{
 
 use crate::{
     graphics::{
-        MeshInstanceBufferData, SpriteInstanceBufferData,
-        geometry::Vertex,
+        MeshInstanceBufferData, MeshVertexBufferData, SpriteInstanceBufferData,
         tilemap::buffer_data::{TilemapInstanceBufferData, TilemapVertexBufferData},
     },
     utils::paths,
@@ -46,7 +45,7 @@ impl PipelinePool {
                     bind_group_layouts.camera.clone(),
                     bind_group_layouts.atlas.clone(),
                 ],
-                &[Vertex::LAYOUT, MeshInstanceBufferData::LAYOUT],
+                &[MeshVertexBufferData::LAYOUT, MeshInstanceBufferData::LAYOUT],
                 device,
             ),
             /*

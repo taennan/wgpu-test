@@ -22,7 +22,7 @@ impl SpriteInstanceBufferData {
             .expect("Failed to get Sprite atlas item index");
 
         Self {
-            atlas_item_index,
+            atlas_item_index: atlas_item_index as u32,
             position: sprite.position,
             texture_division_coords: sprite.texture_division_coords,
         }
