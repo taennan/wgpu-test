@@ -9,3 +9,7 @@ Just small experiments aimed at learning the WGPU graphics library
 - Set up rendering caches inside entities
 - Update buffers
 - Render
+
+## NOTES
+
+UV coords in WebGPU are from 0 to 1 and start in the top left corner

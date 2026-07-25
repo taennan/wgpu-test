@@ -23,101 +23,128 @@ const SE_CORNER = 3;
 
 struct VertexInput {
     // Per vertex
-    @location(0) tile_pos: vec2<u32>,
+    @location(0) tile_position: vec2<u32>,
     @location(1) corner: u32,
-    @location(2) colour: vec2<u32>,
+    @location(2) packed_colour: vec2<u32>,
     // Per instance
-    @location(3) map_pos: vec3<f32>,
+    @location(3) map_position: vec3<f32>,
     @location(4) tile_size: vec2<f32>,
-    @location(5) atlas_item_index: u32,
 };
 
 struct VertexOutput {
     @builtin(position) position: vec4<f32>,
-    @location(0) @interpolate(flat) colour: vec2<u32>,
+    @location(0) @interpolate(flat) packed_colour: vec2<u32>,
     @location(1) @interpolate(flat) corner: u32,
-    @location(2) @interpolate(flat) atlas_item_index: u32,
 };
 
 @vertex
 fn vertex_main(input: VertexInput) -> VertexOutput {
     var out: VertexOutput;
-    out.colour = input.colour;
+    out.packed_colour = input.packed_colour;
     out.corner = input.corner;
-    out.atlas_item_index = input.atlas_item_index;
 
     let is_end_corner = input.corner == NE_CORNER || input.corner == SE_CORNER;
     out.position = vec4(
-        _vertex_position(input.tile_pos.x, input.tile_size.x, is_end_corner, input.map_pos.x, screen_size.x),
-        _vertex_position(input.tile_pos.y, input.tile_size.y, is_end_corner, input.map_pos.y, screen_size.y),
-        input.map_pos.z,
+        vertex_position(input.tile_position.x, input.tile_size.x, is_end_corner, input.map_position.x, screen_size.x),
+        vertex_position(input.tile_position.y, input.tile_size.y, is_end_corner, input.map_position.y, screen_size.y),
+        input.map_position.z,
         1.0
     );
 
     return out;
 }
 
-fn _vertex_position(tile_pos: u32, tile_size: f32, extend_to_end: bool, map_pos: f32, screen_dimension: u32) -> f32 {
+fn vertex_position(tile_position: u32, tile_size: f32, extend_to_end: bool, map_position: f32, screen_dimension: u32) -> f32 {
     let normalized_screen = 1.0 / f32(screen_dimension);
-    let normalized_map = map_pos * normalized_screen;
+    let normalized_map = map_position * normalized_screen;
     let normalized_tile = tile_size * normalized_screen;
 
-    let vertex = f32(tile_pos) * normalized_tile + select(0.0, normalized_tile, extend_to_end);
+    let vertex = f32(tile_position) * normalized_tile + select(0.0, normalized_tile, extend_to_end);
     let normalized_vertex = vertex * normalized_screen;
 
     return normalized_map + normalized_vertex;
 }
 
 @fragment
-fn fragment_main(vertex: VertexOutput) -> @location(0) vec4<f32> {
-    let colour = colour_data_from_vec2(vertex.colour);
+fn fragment_main(input: VertexOutput) -> @location(0) vec4<f32> {
+    var atlas_sample_input: AtlasSampleInput;
+    atlas_sample_input.packed_colour = input.packed_colour;
+    atlas_sample_input.padding = atlas_padding;
 
-    let rgba_sample = vec4(colour.r, colour.g, colour.b, colour.a);
-    let atlas_uv = _atlas_uv(vertex.atlas_item_index, colour.atlas_item_division_x, colour.atlas_item_division_y, vertex.corner);
-    let atlas_sample = textureSample(atlas_diffuse, atlas_sampler, atlas_uv);
-    let blended_sample = vec4(rgba_sample.rgb, atlas_sample.a);
-
-    let sample = select(
-        blended_sample,
-        select(
-            atlas_sample,
-            select(
-                rgba_sample,
-                vec4(0.0),
-                !colour.modulate_disabled
-            ),
-            !colour.atlas_disabled
-        ),
-        !colour.atlas_disabled && !colour.modulate_disabled
+    const division_offset_table = array<vec2<f32>, 4>(
+        vec2(0.0, 0.0),
+        vec2(0.0, 1.0),
+        vec2(1.0, 0.0),
+        vec2(1.0, 1.0),
     );
+    let division_offset_index = u32(input.corner == NW_CORNER)
+        | (u32(input.corner == NE_CORNER) << 1)
+        | (u32(input.corner == SW_CORNER) << 2)
+        | (u32(input.corner == SE_CORNER) << 3);
+    atlas_sample_input.division_offset = division_offset_table[division_offset_index];
+
+    let sample = atlas_sample(atlas_sample_input);
     return sample;
 }
 
-fn _atlas_uv(atlas_item_index: u32, division_x: u32, division_y: u32, corner: u32) -> vec2<f32> {
-    let corner_offset = array<vec2<f32>, 4>(
-        vec2(0.0, 0.0),
-        vec2(1.0, 0.0),
-        vec2(0.0, 1.0),
-        vec2(1.0, 1.0)
-    )[corner];
+struct AtlasSampleInput {
+    packed_colour: vec2<u32>,
+    padding: u32,
+    division_offset: vec2<f32>,
+}
 
-    let atlas_item = atlas_items[atlas_item_index];
-    let padding_wh = _atlas_to_uv_coords(vec2(atlas_padding, atlas_padding));
+fn atlas_sample(input: AtlasSampleInput) -> vec4<f32> {
+    let colour = colour_data_from_vec2(input.packed_colour);
+
+    var atlas_uv_input: AtlasUvInput;
+    atlas_uv_input.item_index = colour.atlas_item_index;
+    atlas_uv_input.padding = input.padding;
+    atlas_uv_input.division_x = colour.atlas_item_coords.x;
+    atlas_uv_input.division_y = colour.atlas_item_coords.y;
+    atlas_uv_input.division_offset = input.division_offset;
+    let atlas_uv = atlas_uv(atlas_uv_input);
+    let atlas_sample = textureSample(atlas_diffuse, atlas_sampler, atlas_uv);
+
+    let blended_sample = vec4(colour.rgba.rgb, atlas_sample.a);
+
+    let sample_table = array<vec4<f32>, 4>(
+        vec4(1.0, 0.0, 1.0, 0.0),
+        colour.rgba,
+        atlas_sample,
+        blended_sample,
+    );
+    let sample_index = u32(!colour.modulate_disabled) | (u32(!colour.atlas_disabled) << 1u) ;
+
+    let sample = sample_table[sample_index];
+    return sample;
+}
+
+struct AtlasUvInput {
+    item_index: u32,
+    padding: u32,
+    division_x: u32,
+    division_y: u32,
+    division_offset: vec2<f32>,
+}
+
+fn atlas_uv(input: AtlasUvInput) -> vec2<f32> {
+    let atlas_item = atlas_items[input.item_index];
+    let padding_wh = atlas_to_uv_coords(vec2(input.padding, input.padding));
 
     let total_atlas_item_padding = padding_wh * vec2(f32(atlas_item.position.x + 1), f32(atlas_item.position.x + 1));
-    let atlas_item_uv = _atlas_to_uv_coords(atlas_item.position) + total_atlas_item_padding;
-    let atlas_item_wh = _atlas_to_uv_coords(atlas_item.size);
+    let atlas_item_uv = atlas_to_uv_coords(atlas_item.position) + total_atlas_item_padding;
+    let atlas_item_wh = atlas_to_uv_coords(atlas_item.size);
 
     let division_wh = atlas_item_wh / vec2(f32(atlas_item.divisions.x), f32(atlas_item.divisions.y));
     let division_uv = vec2<f32>(
-        (division_wh.x * corner_offset.x) + (division_wh.x * f32(division_x)),
-        (division_wh.y * corner_offset.y) + (division_wh.y * f32(division_y))
+        (division_wh.x * input.division_offset.x) + (division_wh.x * f32(input.division_x)),
+        (division_wh.y * input.division_offset.y) + (division_wh.y * f32(input.division_y))
     );
 
     return division_uv;
 }
 
-fn _atlas_to_uv_coords(atlas_coords: vec2<u32>) -> vec2<f32> {
+fn atlas_to_uv_coords(atlas_coords: vec2<u32>) -> vec2<f32> {
     let atlas_size = textureDimensions(atlas_diffuse);
     return vec2(
         f32(atlas_coords.x) / f32(atlas_size.x),
@@ -128,18 +155,17 @@ fn _atlas_to_uv_coords(atlas_coords: vec2<u32>) -> vec2<f32> {
 struct ColourData {
     atlas_disabled: bool,
     modulate_disabled: bool,
-    atlas_item_division_x: u32,
-    atlas_item_division_y: u32,
-    r: f32,
-    g: f32,
-    b: f32,
-    a: f32,
+    atlas_item_index: u32,
+    atlas_item_coords: vec2<u32>,
+    rgba: vec4<f32>,
 };
 
 /**
- * ColourData can be stored as a vec2<u32> with the following layout, where each section takes 8 bits
- * - metadata
- * - metadata
+ * ColourData can be stored as a vec2<u32> with the following bit layout.
+ * Each section takes 8 bits, except the metadata section, which takes 4
+ * and the atlas item index section, which takes 12
+ * - metadata (4 bits)
+ * - atlas item index (12 bits)
  * - atlas item division x
  * - atlas item division y
  * - red channel
@@ -148,18 +174,19 @@ struct ColourData {
  * - alpha channel
  */
 fn colour_data_from_vec2(input: vec2<u32>) -> ColourData {
-    let metadata = slice_u32(input.x, 0u, 16u);
+    let metadata = slice_u32(input.x, 0u, 4u);
     let max_rgba_channel = 255.0;
 
     var colour: ColourData;
     colour.atlas_disabled = (metadata & 1u) != 0u;
     colour.modulate_disabled = ((metadata >> 1u) & 1u) != 0u;
-    colour.atlas_item_division_x = slice_u32(input.x, 16u, 24u);
-    colour.atlas_item_division_y = slice_u32(input.x, 24u, 32u);
-    colour.r = f32(slice_u32(input.y, 0u, 8u)) / max_rgba_channel;
-    colour.g = f32(slice_u32(input.y, 8u, 16u)) / max_rgba_channel;
-    colour.b = f32(slice_u32(input.y, 16u, 24u)) / max_rgba_channel;
-    colour.a = f32(slice_u32(input.y, 24u, 32u)) / max_rgba_channel;
+    colour.atlas_item_index = slice_u32(input.x, 4u, 16u);
+    colour.atlas_item_coords.x = slice_u32(input.x, 16u, 24u);
+    colour.atlas_item_coords.y = slice_u32(input.x, 24u, 32u);
+    colour.rgba.r = f32(slice_u32(input.y, 0u, 8u)) / max_rgba_channel;
+    colour.rgba.g = f32(slice_u32(input.y, 8u, 16u)) / max_rgba_channel;
+    colour.rgba.b = f32(slice_u32(input.y, 16u, 24u)) / max_rgba_channel;
+    colour.rgba.a = f32(slice_u32(input.y, 24u, 32u)) / max_rgba_channel;
 
     return colour;
 }

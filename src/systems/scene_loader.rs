@@ -5,7 +5,7 @@ use crate::{
     utils::paths,
 };
 use glam::{UVec2, Vec3};
-use std::path::PathBuf;
+use std::{iter, path::PathBuf};
 use wgpu::CommandEncoderDescriptor;
 use winit::keyboard::KeyCode;
 
@@ -52,15 +52,6 @@ impl SceneLoader {
         sprite_0.position.x = 200.0;
         sprite_1.position.x = -200.0;
 
-        sprite_0.texture_atlas_item_index = state
-            .graphics
-            .texture_atlas
-            .atlas_item_index(&sprite_0.texture_path);
-        sprite_1.texture_atlas_item_index = state
-            .graphics
-            .texture_atlas
-            .atlas_item_index(&sprite_1.texture_path);
-
         let mut encoder = state
             .graphics
             .device
@@ -74,6 +65,14 @@ impl SceneLoader {
             &mut state.graphics.queue,
             &mut encoder,
         );
+        sprite_0.texture_atlas_item_index = state
+            .graphics
+            .texture_atlas
+            .atlas_item_index(&sprite_0.texture_path);
+        sprite_1.texture_atlas_item_index = state
+            .graphics
+            .texture_atlas
+            .atlas_item_index(&sprite_1.texture_path);
 
         state
             .graphics
@@ -86,7 +85,7 @@ impl SceneLoader {
         state.game.meshes = vec![mesh];
         state.game.camera = camera;
 
-        state.graphics.command_buffers.push(encoder.finish());
+        state.graphics.queue.submit(iter::once(encoder.finish()));
     }
 
     fn unload_sprite_test(&self, state: &mut RootState) {

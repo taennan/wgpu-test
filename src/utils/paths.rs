@@ -15,6 +15,13 @@ where
     assets().join("geometry").join(name)
 }
 
+pub fn font<P>(name: P) -> PathBuf
+where
+    P: AsRef<Path>,
+{
+    assets().join("fonts").join(name)
+}
+
 pub fn texture<P>(name: P) -> PathBuf
 where
     P: AsRef<Path>,

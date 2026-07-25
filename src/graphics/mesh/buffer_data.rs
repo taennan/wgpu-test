@@ -48,7 +48,7 @@ impl MeshInstanceBufferData {
     const POSITION_FORMAT: VertexFormat = VertexFormat::Float32x3;
 
     pub const LAYOUT: VertexBufferLayout<'static> = VertexBufferLayout {
-        array_stride: mem::size_of::<MeshInstanceBufferData>() as u64,
+        array_stride: mem::size_of::<Self>() as u64,
         step_mode: VertexStepMode::Instance,
         attributes: &[
             VertexAttribute {

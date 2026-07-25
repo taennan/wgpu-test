@@ -1,4 +1,5 @@
 //pub mod corner;
+pub mod fontmap;
 pub mod map_2d;
 pub mod movement;
 pub mod paths;

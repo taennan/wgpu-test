@@ -3,7 +3,6 @@ pub mod camera_mover;
 pub mod common;
 pub mod key_mapper;
 //pub mod texture_toggler;
-pub mod command_submitter;
 pub mod scene_loader;
 pub mod window_redrawer;
 

@@ -8,6 +8,7 @@ mod utils;
 use app::App;
 use dotenv::dotenv;
 use env_logger;
+use utils::fontmap;
 use winit::event_loop::{ControlFlow, EventLoop};
 
 pub fn main() {
@@ -15,6 +16,10 @@ pub fn main() {
     env_logger::init();
 
     log::info!("Will start wgpu-test");
+
+    fontmap::save_fontmap("JetBrainsMono-Variable.ttf", 12);
+
+    return;
 
     let mut app = App::new();
 

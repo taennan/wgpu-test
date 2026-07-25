@@ -143,11 +143,6 @@ impl WindowRedrawer {
             .poll(PollType::wait_indefinitely())
             .expect("Failed to poll device");
 
-        /*
-        state.graphics.surface_texture_view = Some(texture_view);
-        state.graphics.command_buffers.push(encoder.finish());
-         */
-
         state.graphics.queue.submit(iter::once(encoder.finish()));
         state.app.window.pre_present_notify();
         state.graphics.queue.present(current_texture);

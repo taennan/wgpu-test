@@ -8,6 +8,7 @@ use wgpu::{
 use crate::{
     graphics::{
         MeshInstanceBufferData, MeshVertexBufferData, SpriteInstanceBufferData,
+        SpriteVertexBufferData,
         tilemap::buffer_data::{TilemapInstanceBufferData, TilemapVertexBufferData},
     },
     utils::paths,
@@ -18,8 +19,8 @@ pub struct PipelinePool {
     pub is_sprite_disabled: bool,
     pub is_tilemap_disabled: bool,
     mesh: RenderPipeline,
-    //sprite: RenderPipeline,
-    //tilemap: RenderPipeline,
+    sprite: RenderPipeline,
+    tilemap: RenderPipeline,
 }
 
 pub struct GlobalBindGroupLayouts<'a> {
@@ -36,7 +37,7 @@ impl PipelinePool {
     ) -> Self {
         Self {
             is_mesh_disabled: false,
-            is_sprite_disabled: true,
+            is_sprite_disabled: false,
             is_tilemap_disabled: true,
             mesh: Self::create_pipeline(
                 "mesh",
@@ -48,7 +49,6 @@ impl PipelinePool {
                 &[MeshVertexBufferData::LAYOUT, MeshInstanceBufferData::LAYOUT],
                 device,
             ),
-            /*
             sprite: Self::create_pipeline(
                 "sprite",
                 texture_format,
@@ -56,7 +56,10 @@ impl PipelinePool {
                     bind_group_layouts.screen_size.clone(),
                     bind_group_layouts.atlas.clone(),
                 ],
-                &[Vertex::LAYOUT, SpriteInstanceBufferData::LAYOUT],
+                &[
+                    SpriteVertexBufferData::LAYOUT,
+                    SpriteInstanceBufferData::LAYOUT,
+                ],
                 device,
             ),
             tilemap: Self::create_pipeline(
@@ -72,7 +75,6 @@ impl PipelinePool {
                 ],
                 device,
             ),
-            */
         }
     }
 
@@ -155,12 +157,10 @@ impl PipelinePool {
     }
 
     pub fn sprite(&self) -> &RenderPipeline {
-        &self.mesh
-        // &self.sprite
+        &self.sprite
     }
 
     pub fn tilemap(&self) -> &RenderPipeline {
-        &self.mesh
-        // &self.tilemap
+        &self.tilemap
     }
 }

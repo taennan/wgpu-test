@@ -1,15 +1,19 @@
-use crate::{game::Sprite, graphics::texture::TextureAtlas};
+use crate::{
+    game::Sprite,
+    graphics::{geometry::Vertex, texture::TextureAtlas, types::ColourData},
+};
 use bytemuck::{Pod, Zeroable};
-use glam::{UVec2, Vec3};
+use glam::{U8Vec2, UVec2, Vec3};
 use std::mem;
 use wgpu::{VertexAttribute, VertexBufferLayout, VertexFormat, VertexStepMode};
+
+pub type SpriteVertexBufferData = Vertex;
 
 #[repr(C)]
 #[derive(Clone, Copy, Debug, Default, PartialEq, Pod, Zeroable)]
 pub struct SpriteInstanceBufferData {
+    packed_colour: UVec2,
     position: Vec3,
-    atlas_item_index: u32,
-    texture_division_coords: UVec2,
 }
 
 impl SpriteInstanceBufferData {
@@ -20,42 +24,33 @@ impl SpriteInstanceBufferData {
             .texture_atlas_item_index
             .or(atlas.atlas_item_index(&sprite.texture_path))
             .expect("Failed to get Sprite atlas item index");
+        let colour = ColourData::textured(atlas_item_index, U8Vec2::ZERO);
 
         Self {
-            atlas_item_index: atlas_item_index as u32,
+            packed_colour: colour.into(),
             position: sprite.position,
-            texture_division_coords: sprite.texture_division_coords,
         }
     }
 
-    const POSITION_OFFSET: u64 = 0;
+    const PACKED_COLOUR_OFFSET: u64 = 0;
+    const PACKED_COLOUR_FORMAT: VertexFormat = VertexFormat::Uint32x2;
+
+    const POSITION_OFFSET: u64 = Self::PACKED_COLOUR_OFFSET + Self::PACKED_COLOUR_FORMAT.size();
     const POSITION_FORMAT: VertexFormat = VertexFormat::Float32x3;
 
-    const ATLAS_ITEM_INDEX_OFFSET: u64 = Self::POSITION_OFFSET + Self::POSITION_FORMAT.size();
-    const ATLAS_ITEM_INDEX_FORMAT: VertexFormat = VertexFormat::Uint32;
-
-    const TEXTURE_DIVISION_COORDS_OFFSET: u64 =
-        Self::ATLAS_ITEM_INDEX_OFFSET + Self::ATLAS_ITEM_INDEX_FORMAT.size();
-    const TEXTURE_DIVISION_COORDS_FORMAT: VertexFormat = VertexFormat::Uint32x2;
-
     pub const LAYOUT: VertexBufferLayout<'static> = VertexBufferLayout {
-        array_stride: mem::size_of::<SpriteInstanceBufferData>() as u64,
+        array_stride: mem::size_of::<Self>() as u64,
         step_mode: VertexStepMode::Instance,
         attributes: &[
             VertexAttribute {
                 shader_location: 2,
-                offset: Self::POSITION_OFFSET,
-                format: Self::POSITION_FORMAT,
+                offset: Self::PACKED_COLOUR_OFFSET,
+                format: Self::PACKED_COLOUR_FORMAT,
             },
             VertexAttribute {
                 shader_location: 3,
-                offset: Self::ATLAS_ITEM_INDEX_OFFSET,
-                format: Self::ATLAS_ITEM_INDEX_FORMAT,
-            },
-            VertexAttribute {
-                shader_location: 4,
-                offset: Self::TEXTURE_DIVISION_COORDS_OFFSET,
-                format: Self::TEXTURE_DIVISION_COORDS_FORMAT,
+                offset: Self::POSITION_OFFSET,
+                format: Self::POSITION_FORMAT,
             },
         ],
     };
