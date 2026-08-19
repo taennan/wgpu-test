@@ -1,3 +1,4 @@
+use crate::graphics::buffer::BufferSlice;
 use std::collections::HashSet;
 
 pub struct SmartBuffer<T, K> {
@@ -16,11 +17,6 @@ type IndexGetter<K> = Box<dyn Fn(&K) -> Option<usize>>;
 enum SetChunkError {
     Dirty,
     Zero,
-}
-
-pub struct BufferSlice {
-    start: u64,
-    data: Box<[u8]>,
 }
 
 impl<T, K> SmartBuffer<T, K> {
@@ -120,8 +116,7 @@ impl<T, K> SmartBuffer<T, K> {
 
             if is_initial {
                 let start = *chunk as u64 * self.chunk_size as u64 * self.item_size;
-                let data = Box::new([]);
-                slices.push(BufferSlice { start, data });
+                slices.push(BufferSlice::new(start, vec![].into_boxed_slice()));
             }
 
             let mut data = Vec::with_capacity(
@@ -141,7 +136,7 @@ impl<T, K> SmartBuffer<T, K> {
 
             let last_slice_index = slices.len() - 1;
             let slice = slices.get_mut(last_slice_index).unwrap();
-            slice.data = data.into_boxed_slice();
+            slice.bytes = data.into_boxed_slice();
         }
 
         self.clean();

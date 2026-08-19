@@ -103,7 +103,7 @@ impl WindowRedrawer {
 
         let mut renderer_update_input = RendererUpdateInput {
             texture_atlas: &state.graphics.texture_atlas,
-            geometry: &state.graphics.geometry_pool,
+            //geometry: &state.graphics.geometry_pool,
             device: &state.graphics.device,
         };
 
@@ -120,7 +120,7 @@ impl WindowRedrawer {
                 state.graphics.camera_renderer.bind_group(),
                 state.graphics.texture_atlas.bind_group(),
                 render_pass_factory.start(),
-                &mut state.graphics.pipelines,
+                &state.graphics.pipelines,
             );
         }
         if !state.graphics.pipelines.is_sprite_disabled {
@@ -133,9 +133,24 @@ impl WindowRedrawer {
                 state.graphics.texture_atlas.bind_group(),
                 state.graphics.screen_size.bind_group(),
                 render_pass_factory.secondary(),
-                &mut state.graphics.pipelines,
+                &state.graphics.pipelines,
             );
         }
+        /*
+        if !state.graphics.pipelines.is_tilemap_disabled {
+            state
+                .graphics
+                .tilemap_renderer
+                .update(&state.game.sprites, &mut renderer_update_input);
+            let mut render_pass_factory = RenderPassFactory::new(&texture_view, &mut encoder);
+            state.graphics.sprite_renderer.render(
+                state.graphics.texture_atlas.bind_group(),
+                state.graphics.screen_size.bind_group(),
+                render_pass_factory.secondary(),
+                &state.graphics.pipelines,
+            );
+        }
+         */
 
         state
             .graphics

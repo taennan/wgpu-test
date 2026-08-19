@@ -1,17 +1,22 @@
-use crate::utils::rw_lockpick;
+use crate::{graphics::buffer::BufferSlice, utils::rw_lockpick};
 use bytemuck::Pod;
 use std::{
-    mem,
-    sync::{Arc, RwLock},
+    mem, slice,
+    sync::{
+        Arc, RwLock,
+        atomic::{AtomicBool, Ordering},
+    },
 };
 use wgpu::{
-    Buffer, BufferAddress, BufferDescriptor, BufferUsages, Device, MapMode, WasmNotSend,
+    Buffer, BufferAddress, BufferDescriptor, BufferUsages, Device, MapMode, MapRangeError,
+    WasmNotSend,
     util::{BufferInitDescriptor, DeviceExt},
 };
 
 #[derive(Clone, Debug)]
 pub struct MutBuffer {
     inner: Buffer,
+    has_mapped: Arc<AtomicBool>,
     has_mapped_lock: Arc<RwLock<bool>>,
 }
 
@@ -60,10 +65,7 @@ impl MutBufferBuilder {
             size,
         });
 
-        MutBuffer {
-            inner,
-            has_mapped_lock: Arc::new(RwLock::new(false)),
-        }
+        MutBuffer::new(inner)
     }
 
     pub fn build_init<T>(self, contents: &[T], device: &Device) -> MutBuffer
@@ -76,10 +78,7 @@ impl MutBufferBuilder {
             usage: self._usages.unwrap_or(BufferUsages::MAP_WRITE),
         });
 
-        MutBuffer {
-            inner,
-            has_mapped_lock: Arc::new(RwLock::new(false)),
-        }
+        MutBuffer::new(inner)
     }
 }
 
@@ -88,12 +87,21 @@ impl MutBuffer {
         MutBufferBuilder::default()
     }
 
+    fn new(buffer: Buffer) -> Self {
+        Self {
+            inner: buffer,
+            has_mapped: Arc::new(AtomicBool::new(false)),
+            has_mapped_lock: Arc::new(RwLock::new(false)),
+        }
+    }
+
     pub fn buffer(&self) -> &Buffer {
         &self.inner
     }
 
     pub fn is_mapped(&self) -> bool {
-        rw_lockpick::read_or(&self.has_mapped_lock, true)
+        self.has_mapped.load(Ordering::Relaxed)
+        //rw_lockpick::read_or(&self.has_mapped_lock, true)
     }
 }
 
@@ -118,9 +126,11 @@ impl MutBuffer {
 
         let data = data.to_vec();
         let inner = self.inner.clone();
-        let has_mapped_lock = self.has_mapped_lock.clone();
+        //let has_mapped_lock = self.has_mapped_lock.clone();
+        let has_mapped = self.has_mapped.clone();
 
-        rw_lockpick::write(&has_mapped_lock, true);
+        //rw_lockpick::write(&has_mapped_lock, true);
+        has_mapped.store(true, Ordering::Relaxed);
 
         self.inner
             .map_async(MapMode::Write, 0..inner.size(), move |buffer_result| {
@@ -138,7 +148,55 @@ impl MutBuffer {
                 };
 
                 inner.unmap();
-                rw_lockpick::write(&has_mapped_lock, false);
+                //rw_lockpick::write(&has_mapped_lock, false);
+                has_mapped.store(false, Ordering::Relaxed);
+            });
+    }
+
+    pub fn write_slices(&mut self, slices: Vec<BufferSlice>) {
+        self.write_slices_then(slices, || {}, || {});
+    }
+
+    pub fn write_slices_then<F, E>(
+        &mut self,
+        slices: Vec<BufferSlice>,
+        ok_callback: F,
+        err_callback: E,
+    ) where
+        F: FnOnce() + WasmNotSend + 'static,
+        E: FnOnce() + WasmNotSend + 'static,
+    {
+        let inner = self.inner.clone();
+        let has_mapped = self.has_mapped.clone();
+
+        has_mapped.store(true, Ordering::Relaxed);
+
+        self.inner
+            .map_async(MapMode::Write, .., move |buffer_result| {
+                match buffer_result {
+                    Ok(_) => {
+                        for slice in &slices {
+                            let range = slice.start..(slice.bytes.len() as u64);
+                            let mut view = match inner.get_mapped_range_mut(range) {
+                                Ok(view) => view,
+                                Err(err) => {
+                                    log::error!("Failed to get mapped range: {:?}", err);
+                                    continue;
+                                }
+                            };
+
+                            view.copy_from_slice(&slice.bytes);
+                        }
+
+                        ok_callback();
+                    }
+                    Err(_) => {
+                        err_callback();
+                    }
+                };
+
+                inner.unmap();
+                has_mapped.store(false, Ordering::Relaxed);
             });
     }
 }

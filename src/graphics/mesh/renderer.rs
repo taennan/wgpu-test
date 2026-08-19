@@ -26,6 +26,8 @@ impl MeshRenderer {
     }
 
     pub fn update(&mut self, meshes: &[Mesh], input: &RendererUpdateInput) {
+        /*
+
         if !self.is_inited && meshes.is_empty() {
             return;
         }
@@ -94,6 +96,8 @@ impl MeshRenderer {
         self.total_indices = indices.len();
         self.total_instances = meshes.len();
         self.is_inited = true;
+
+        */
     }
 
     pub fn render(
@@ -101,7 +105,7 @@ impl MeshRenderer {
         camera_bind_group: &BindGroup,
         atlas_bind_group: &BindGroup,
         render_pass: RenderPass<'_>,
-        pipelines: &mut PipelinePool,
+        pipelines: &PipelinePool,
     ) {
         let (vertex_buffer, instance_buffer, index_buffer) = match (
             &self.vertex_buffer,

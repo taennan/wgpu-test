@@ -1,12 +1,15 @@
 use crate::{
     error::*,
     graphics::{
-        CameraRenderer, MeshRenderer, SpriteRenderer,
-        geometry::GeometryPool,
+        CameraRenderer,
+        MeshRenderer,
+        SpriteRenderer,
+        //geometry::GeometryPool,
         pipeline::{GlobalBindGroupLayouts, PipelinePool},
         screen_size::GpuScreenSize,
         surface::SurfaceConfigFactory,
         texture::TextureAtlas,
+        //tilemap::renderer::TilemapRenderer,
     },
 };
 use glam::UVec2;
@@ -24,12 +27,13 @@ pub struct GraphicsState {
     pub device: Device,
     pub queue: Queue,
     pub texture_atlas: TextureAtlas,
-    pub geometry_pool: GeometryPool,
+    //pub geometry_pool: GeometryPool,
     pub pipelines: PipelinePool,
     pub screen_size: GpuScreenSize,
     pub camera_renderer: CameraRenderer,
     pub mesh_renderer: MeshRenderer,
     pub sprite_renderer: SpriteRenderer,
+    //pub tilemap_renderer: TilemapRenderer,
     pub command_buffers: Vec<CommandBuffer>,
 }
 
@@ -78,7 +82,7 @@ impl GraphicsState {
         let camera_renderer = CameraRenderer::new(&device);
 
         let texture_atlas = TextureAtlas::new(&device);
-        let geometry_pool = GeometryPool::new();
+        //let geometry_pool = GeometryPool::new();
 
         let pipelines = PipelinePool::new(
             GlobalBindGroupLayouts {
@@ -92,6 +96,7 @@ impl GraphicsState {
 
         let mesh_renderer = MeshRenderer::new();
         let sprite_renderer = SpriteRenderer::new();
+        //let tilemap_renderer = TilemapRenderer::new();
 
         Ok(Self {
             surface,
@@ -99,12 +104,13 @@ impl GraphicsState {
             device,
             queue,
             texture_atlas,
-            geometry_pool,
+            //geometry_pool,
             pipelines,
             screen_size,
             camera_renderer,
             mesh_renderer,
             sprite_renderer,
+            //tilemap_renderer,
             command_buffers: vec![],
             is_surface_configured: false,
         })

@@ -74,11 +74,13 @@ impl SceneLoader {
             .texture_atlas
             .atlas_item_index(&sprite_1.texture_path);
 
+        /*
         state
             .graphics
             .geometry_pool
             .insert_rect(&square_mesh_key, UVec2::new(200, 150));
         state.graphics.geometry_pool.load(&cube_mesh_key);
+         */
 
         state.game.scene_path = Some(PathBuf::from("Sprite + Mesh Test"));
         state.game.sprites = vec![sprite_0, sprite_1];
@@ -93,7 +95,7 @@ impl SceneLoader {
         state.game.sprites.clear();
         state.game.meshes.clear();
         state.game.camera = Camera::new();
-        state.graphics.geometry_pool.clear();
+        //state.graphics.geometry_pool.clear();
         state.graphics.texture_atlas.clear();
     }
 }

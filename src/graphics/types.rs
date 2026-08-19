@@ -1,11 +1,14 @@
-use crate::graphics::{geometry::GeometryPool, texture::TextureAtlas};
+use crate::graphics::{
+    //geometry::GeometryPool,
+    texture::TextureAtlas,
+};
 use glam::{U8Vec2, UVec2, Vec4};
 use std::cmp;
 use wgpu::Device;
 
 pub struct RendererUpdateInput<'a> {
     pub texture_atlas: &'a TextureAtlas,
-    pub geometry: &'a GeometryPool,
+    //pub geometry: &'a GeometryPool,
     //pub pipelines: &'a mut PipelinePool,
     pub device: &'a Device,
     //pub queue: &'a mut Queue,
@@ -65,8 +68,8 @@ fn clamp_to_normalized(value: f32) -> f32 {
 }
 
 // See shaders for the bit layout of packed colour data
-impl From<ColourData> for UVec2 {
-    fn from(value: ColourData) -> Self {
+impl From<&ColourData> for UVec2 {
+    fn from(value: &ColourData) -> Self {
         let atlas_disabled = if value.atlas_disabled { 1 } else { 0u32 };
         let modulate_disabled = if value.modulate_disabled { 0b10 } else { 0u32 };
         let atlas_item_index = slice_u32(value.atlas_item_index, 0, 12) << 4;
@@ -87,6 +90,12 @@ impl From<ColourData> for UVec2 {
             r | g | b | a,
         );
         this
+    }
+}
+
+impl From<ColourData> for UVec2 {
+    fn from(value: ColourData) -> Self {
+        Self::from(&value)
     }
 }
 

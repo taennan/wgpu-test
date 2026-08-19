@@ -25,6 +25,8 @@ impl SpriteRenderer {
     }
 
     pub fn update(&mut self, sprites: &[Sprite], input: &RendererUpdateInput) {
+        /*
+
         if !self.is_inited() && sprites.is_empty() {
             return;
         }
@@ -86,6 +88,8 @@ impl SpriteRenderer {
             .map(|b| b.write(&instance_buffer_data));
         self.total_indices = indices.len();
         self.total_instances = sprites.len();
+
+        */
     }
 
     fn is_inited(&self) -> bool {

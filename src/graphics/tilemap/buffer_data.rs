@@ -1,3 +1,4 @@
+use crate::graphics::types::ColourData;
 use bytemuck::{Pod, Zeroable};
 use glam::{UVec2, Vec2, Vec3};
 use std::{cmp, mem};
@@ -13,7 +14,7 @@ pub struct TilemapVertexBufferData {
 }
 
 impl TilemapVertexBufferData {
-    pub fn new_corners(tile_position: UVec2, colour: &TilemapVertexColourData) -> [Self; 4] {
+    pub fn new_corners(tile_position: UVec2, colour: &ColourData) -> [Self; 4] {
         [
             Self::new(tile_position, 0, colour),
             Self::new(tile_position, 1, colour),
@@ -22,7 +23,7 @@ impl TilemapVertexBufferData {
         ]
     }
 
-    fn new(tile_position: UVec2, corner: u32, colour: &TilemapVertexColourData) -> Self {
+    fn new(tile_position: UVec2, corner: u32, colour: &ColourData) -> Self {
         Self {
             tile_position,
             corner,
@@ -60,67 +61,6 @@ impl TilemapVertexBufferData {
             },
         ],
     };
-}
-
-#[derive(Clone, Debug, Default)]
-pub struct TilemapVertexColourData {
-    atlas_disabled: bool,
-    modulate_disabled: bool,
-    atlas_item_division_x: usize,
-    atlas_item_division_y: usize,
-    r: u8,
-    g: u8,
-    b: u8,
-    a: u8,
-}
-
-impl TilemapVertexColourData {
-    pub fn transparent(self) -> Self {
-        Self::default()
-    }
-
-    pub fn with_texture(self, atlas_item_division_x: usize, atlas_item_division_y: usize) -> Self {
-        Self {
-            atlas_disabled: false,
-            atlas_item_division_x,
-            atlas_item_division_y,
-            ..self
-        }
-    }
-
-    pub fn with_rgba(self, r: u8, g: u8, b: u8, a: u8) -> Self {
-        Self {
-            modulate_disabled: false,
-            r,
-            g,
-            b,
-            a,
-            ..self
-        }
-    }
-}
-
-impl From<&TilemapVertexColourData> for UVec2 {
-    fn from(colour: &TilemapVertexColourData) -> Self {
-        let atlas_disabled = if colour.atlas_disabled { 0b1 } else { 0b0 };
-        let modulate_disabled = if colour.modulate_disabled { 0b10 } else { 0b0 };
-        let metadata = 0u16 | atlas_disabled | modulate_disabled;
-
-        let atlas_item_division_x = cmp::min(colour.atlas_item_division_x, u8::MAX as usize) as u8;
-        let atlas_item_division_y = cmp::min(colour.atlas_item_division_y, u8::MAX as usize) as u8;
-
-        let atlas_portion = 0u32
-            | metadata as u32
-            | (atlas_item_division_x as u32)
-            | (atlas_item_division_y as u32) << 8;
-        let rgba_portion = 0u32
-            | (colour.r as u32)
-            | (colour.g as u32) << 8
-            | (colour.b as u32) << 16
-            | (colour.a as u32) << 24;
-
-        UVec2::new(atlas_portion, rgba_portion)
-    }
 }
 
 #[repr(C)]

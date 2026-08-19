@@ -1,5 +1,7 @@
-use super::{Geometry, Vertex};
-use crate::utils;
+use crate::{
+    graphics::geometry::{Geometry, Vertex},
+    utils,
+};
 use glam::{UVec2, Vec2, Vec3, Vec3Swizzles};
 use gltf;
 use image::EncodableLayout;
@@ -14,6 +16,12 @@ use tobj;
 #[derive(Debug, Default)]
 pub struct GeometryPool {
     geometry: HashMap<PathBuf, Geometry>,
+}
+
+#[derive(Debug)]
+pub struct GeometryData {
+    pub total_vertices: u64,
+    pub total_indices: u64,
 }
 
 impl GeometryPool {

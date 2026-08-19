@@ -1,4 +1,4 @@
-use crate::utils::smart_buffer::{BufferSlice, SmartBuffer};
+use crate::{graphics::buffer::BufferSlice, utils::smart_buffer::SmartBuffer};
 use bytemuck::{Pod, Zeroable};
 use glam::{IVec2, UVec2};
 use std::{
