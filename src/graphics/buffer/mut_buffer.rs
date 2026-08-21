@@ -1,15 +1,14 @@
-use crate::{graphics::buffer::BufferSlice, utils::rw_lockpick};
+use crate::graphics::buffer::BufferSlice;
 use bytemuck::Pod;
 use std::{
-    mem, slice,
+    mem,
     sync::{
-        Arc, RwLock,
+        Arc,
         atomic::{AtomicBool, Ordering},
     },
 };
 use wgpu::{
-    Buffer, BufferAddress, BufferDescriptor, BufferUsages, Device, MapMode, MapRangeError,
-    WasmNotSend,
+    Buffer, BufferAddress, BufferDescriptor, BufferUsages, Device, MapMode, WasmNotSend,
     util::{BufferInitDescriptor, DeviceExt},
 };
 
@@ -17,7 +16,6 @@ use wgpu::{
 pub struct MutBuffer {
     inner: Buffer,
     has_mapped: Arc<AtomicBool>,
-    has_mapped_lock: Arc<RwLock<bool>>,
 }
 
 #[derive(Debug)]
@@ -41,12 +39,14 @@ impl MutBufferBuilder {
         self
     }
 
+    /*
     pub fn optional_name(mut self, name: Option<&'static str>) -> Self {
         if name.is_some() {
             self._name = name;
         }
         self
     }
+     */
 
     pub fn usages(mut self, usages: BufferUsages) -> Self {
         self._usages = Some(usages);
@@ -91,7 +91,6 @@ impl MutBuffer {
         Self {
             inner: buffer,
             has_mapped: Arc::new(AtomicBool::new(false)),
-            has_mapped_lock: Arc::new(RwLock::new(false)),
         }
     }
 
@@ -101,7 +100,6 @@ impl MutBuffer {
 
     pub fn is_mapped(&self) -> bool {
         self.has_mapped.load(Ordering::Relaxed)
-        //rw_lockpick::read_or(&self.has_mapped_lock, true)
     }
 }
 
@@ -110,10 +108,10 @@ impl MutBuffer {
     where
         T: Pod + Send + Sync,
     {
-        self.write_async(data, || {}, || {});
+        self.write_then(data, || {}, || {});
     }
 
-    pub fn write_async<T, F, E>(&mut self, data: &[T], ok_callback: F, err_callback: E)
+    pub fn write_then<T, F, E>(&mut self, data: &[T], ok_callback: F, err_callback: E)
     where
         T: Pod + Send + Sync,
         F: FnOnce() + WasmNotSend + 'static,
@@ -166,6 +164,10 @@ impl MutBuffer {
         F: FnOnce() + WasmNotSend + 'static,
         E: FnOnce() + WasmNotSend + 'static,
     {
+        if slices.is_empty() {
+            return;
+        }
+
         let inner = self.inner.clone();
         let has_mapped = self.has_mapped.clone();
 
@@ -176,7 +178,7 @@ impl MutBuffer {
                 match buffer_result {
                     Ok(_) => {
                         for slice in &slices {
-                            let range = slice.start..(slice.bytes.len() as u64);
+                            let range = slice.start..(slice.start + slice.bytes.len() as u64);
                             let mut view = match inner.get_mapped_range_mut(range) {
                                 Ok(view) => view,
                                 Err(err) => {

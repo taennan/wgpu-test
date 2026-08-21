@@ -1,9 +1,10 @@
 use crate::{
     game::Mesh,
     graphics::{
-        MeshInstanceBufferData, RendererUpdateInput,
+        RendererUpdateInput,
         buffer::MutBuffer,
         geometry::Vertex,
+        mesh::MeshInstanceBufferData,
         pipeline::{PipelinePool, RenderPassDrawer},
     },
 };
@@ -117,8 +118,7 @@ impl MeshRenderer {
         };
 
         RenderPassDrawer::new()
-            .bind_group(camera_bind_group)
-            .bind_group(atlas_bind_group)
+            .bind_groups(&[camera_bind_group, atlas_bind_group])
             .vertex_buffer(vertex_buffer.buffer())
             .vertex_buffer(instance_buffer.buffer())
             .index_buffer(index_buffer.buffer(), self.total_indices as u32)

@@ -6,13 +6,12 @@ pub struct RenderPassDrawer<'a> {
     bind_groups: Vec<&'a BindGroup>,
     vertex_buffers: Vec<RenderPassVertices<'a>>,
     indices: Option<RenderPassIndices<'a>>,
-    index_range: Option<Range<u32>>,
     instance_range: Option<Range<u32>>,
 }
 
-struct RenderPassIndices<'a> {
-    buffer: &'a Buffer,
-    length: u32,
+enum RenderPassIndices<'a> {
+    Range(Range<u32>),
+    Buffer { buffer: &'a Buffer, length: u32 },
 }
 
 struct RenderPassVertices<'a> {
@@ -25,8 +24,10 @@ impl<'a> RenderPassDrawer<'a> {
         Self::default()
     }
 
-    pub fn bind_group(mut self, bind_group: &'a BindGroup) -> Self {
-        self.bind_groups.push(bind_group);
+    pub fn bind_groups(mut self, bind_groups: &'a [&'a BindGroup]) -> Self {
+        for bind_group in bind_groups {
+            self.bind_groups.push(bind_group);
+        }
         self
     }
 
@@ -47,7 +48,7 @@ impl<'a> RenderPassDrawer<'a> {
     }
 
     pub fn index_buffer(mut self, buffer: &'a Buffer, total_indices: u32) -> Self {
-        self.indices = Some(RenderPassIndices {
+        self.indices = Some(RenderPassIndices::Buffer {
             buffer,
             length: total_indices,
         });
@@ -55,7 +56,7 @@ impl<'a> RenderPassDrawer<'a> {
     }
 
     pub fn index_range(mut self, range: Range<u32>) -> Self {
-        self.index_range = Some(range);
+        self.indices = Some(RenderPassIndices::Range(range));
         self
     }
 
@@ -80,13 +81,17 @@ impl<'a> RenderPassDrawer<'a> {
 
         let instance_range = self.instance_range.clone().unwrap_or(0..1);
 
-        if let Some(indices) = &self.indices {
-            render_pass.set_index_buffer(indices.buffer.slice(..), IndexFormat::Uint32);
-            render_pass.draw_indexed(0..indices.length, 0, instance_range);
-        } else if let Some(index_range) = &self.index_range {
-            render_pass.draw(index_range.clone(), instance_range);
-        } else {
-            log::error!("One of indices or index_range was not passed to RenderPass")
+        match &self.indices {
+            Some(RenderPassIndices::Range(range)) => {
+                render_pass.draw(range.clone(), instance_range);
+            }
+            Some(RenderPassIndices::Buffer { buffer, length }) => {
+                render_pass.set_index_buffer(buffer.slice(..), IndexFormat::Uint32);
+                render_pass.draw_indexed(0..*length, 0, instance_range);
+            }
+            _ => {
+                log::error!("Either an index_buffer or index_range was not passed to RenderPass")
+            }
         }
     }
 }

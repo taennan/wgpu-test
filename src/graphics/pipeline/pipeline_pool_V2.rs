@@ -7,8 +7,8 @@ use wgpu::{
 
 use crate::{
     graphics::{
-        MeshInstanceBufferData, MeshVertexBufferData, SpriteInstanceBufferData,
-        SpriteVertexBufferData,
+        mesh::{MeshInstanceBufferData, MeshVertexBufferData},
+        sprite::{SpriteInstanceBufferData, SpriteVertexBufferData},
         tilemap::buffer_data::{TilemapInstanceBufferData, TilemapVertexBufferData},
     },
     utils::paths,

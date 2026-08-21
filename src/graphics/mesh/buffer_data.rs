@@ -1,6 +1,6 @@
 use crate::{
     game::mesh::Mesh,
-    graphics::{ColourData, geometry::Vertex, texture::TextureAtlas},
+    graphics::{ColourData, geometry::Vertex},
 };
 use bytemuck::{Pod, Zeroable};
 use glam::{U8Vec2, UVec2, Vec2, Vec3};
@@ -18,14 +18,9 @@ pub struct MeshInstanceBufferData {
     position: Vec3,
 }
 
-impl MeshInstanceBufferData {
-    pub const SIZE: u64 = mem::size_of::<Self>() as u64;
-
-    pub fn from_mesh(mesh: &Mesh, atlas: &TextureAtlas) -> Self {
-        let atlas_item_index = atlas
-            .atlas_item_index(&mesh.texture_path)
-            .expect("Failed to get Mesh atlas item index");
-        let colour = ColourData::textured(atlas_item_index, U8Vec2::ZERO);
+impl From<&Mesh> for MeshInstanceBufferData {
+    fn from(mesh: &Mesh) -> Self {
+        let colour = ColourData::textured(mesh.texture_atlas_item_index, U8Vec2::ZERO);
 
         Self {
             packed_colour: colour.into(),
@@ -34,7 +29,9 @@ impl MeshInstanceBufferData {
             position: mesh.position,
         }
     }
+}
 
+impl MeshInstanceBufferData {
     const PACKED_COLOUR_OFFSET: u64 = 0;
     const PACKED_COLOUR_FORMAT: VertexFormat = VertexFormat::Uint32x2;
 

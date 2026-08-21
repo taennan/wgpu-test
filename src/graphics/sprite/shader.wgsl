@@ -46,7 +46,7 @@ fn vertex_main(input: VertexInput) -> VertexOutput {
 }
 
 fn vertex_position(vertex: f32, instance: f32, screen_dimension: u32) -> f32 {
-    let normalized_screen = 1.0 / f32(screen_dimension);
+    let normalized_screen = 2.0 / f32(screen_dimension);
     let normalized_instance = instance * normalized_screen;
     let normalized_vertex = vertex * normalized_screen;
     return normalized_vertex + normalized_instance;
@@ -54,6 +54,8 @@ fn vertex_position(vertex: f32, instance: f32, screen_dimension: u32) -> f32 {
 
 @fragment
 fn fragment_main(input: VertexOutput) -> @location(0) vec4<f32> {
+    return vec4(1.0, 1.0, 1.0, 1.0);
+    /*
     var atlas_sample_input: AtlasSampleInput;
     atlas_sample_input.packed_colour = input.packed_colour;
     atlas_sample_input.padding = atlas_padding;
@@ -61,6 +63,7 @@ fn fragment_main(input: VertexOutput) -> @location(0) vec4<f32> {
 
     let sample = atlas_sample(atlas_sample_input);
     return sample;
+    */
 }
 
 struct AtlasSampleInput {
@@ -107,7 +110,7 @@ fn atlas_uv(input: AtlasUvInput) -> vec2<f32> {
     let atlas_item = atlas_items[input.item_index];
     let padding_wh = atlas_to_uv_coords(vec2(input.padding, input.padding));
 
-    let total_atlas_item_padding = padding_wh * vec2(f32(atlas_item.position.x + 1), f32(atlas_item.position.x + 1));
+    let total_atlas_item_padding = padding_wh * vec2(f32(atlas_item.position.x + 1), f32(atlas_item.position.y + 1));
     let atlas_item_uv = atlas_to_uv_coords(atlas_item.position) + total_atlas_item_padding;
     let atlas_item_wh = atlas_to_uv_coords(atlas_item.size);
 

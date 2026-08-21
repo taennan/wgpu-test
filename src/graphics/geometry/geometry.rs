@@ -1,4 +1,5 @@
 use crate::{graphics::geometry::Vertex, utils};
+use bytemuck::Pod;
 use glam::{Vec2, Vec3};
 use gltf;
 use image::EncodableLayout;
@@ -75,38 +76,14 @@ impl<D, V> Geometry<D, V> {
     pub fn indices(&self) -> &[u32] {
         &self.indices
     }
-}
-
-impl MeshGeometry {
-    pub fn load(path: &PathBuf) -> Self {
-        let extension = path.extension();
-        let gltf_ext = OsStr::new("gltf");
-        let obj_ext = OsStr::new("obj");
-
-        let in_vert_generator = Box::new(|raw: RawVertex| Vertex {
-            position: raw.xyz,
-            uv: raw.uv,
-        });
-        let out_vert_generator = Box::new(|v: &Vertex| vec![v.clone()]);
-
-        let geometry = if extension == Some(gltf_ext) {
-            Self::load_gltf(path, in_vert_generator, out_vert_generator)
-        } else if extension == Some(obj_ext) {
-            Self::load_obj(path, in_vert_generator, out_vert_generator)
-        } else {
-            panic!("Unsupported file type");
-        };
-
-        geometry
-    }
 
     fn load_gltf<P>(
         path: &P,
-        in_vert_generator: InputVertexGenerator<Vertex>,
-        out_vert_generator: OutputVertexGenerator<Vertex, Vertex>,
+        in_vert_generator: InputVertexGenerator<D>,
+        out_vert_generator: OutputVertexGenerator<D, V>,
     ) -> Self
     where
-        P: AsRef<Path> + Into<PathBuf> + Clone,
+        P: AsRef<Path> + Into<PathBuf> + ?Sized + Clone,
     {
         let path = utils::paths::geometry(path);
         let (gltf_data, buffers, _) = gltf::import(path.clone())
@@ -162,11 +139,11 @@ impl MeshGeometry {
 
     fn load_obj<P>(
         path: &P,
-        in_vert_generator: InputVertexGenerator<Vertex>,
-        out_vert_generator: OutputVertexGenerator<Vertex, Vertex>,
+        in_vert_generator: InputVertexGenerator<D>,
+        out_vert_generator: OutputVertexGenerator<D, V>,
     ) -> Self
     where
-        P: AsRef<Path> + Into<PathBuf> + Debug + Clone,
+        P: AsRef<Path> + Into<PathBuf> + ?Sized + Debug + Clone,
     {
         todo!();
 
@@ -218,5 +195,91 @@ impl MeshGeometry {
         }
 
         Self::new(path, vertices, out_vert_generator, indices)
+    }
+}
+
+impl<D, V> Geometry<D, V>
+where
+    D: Clone,
+    V: Pod + Debug,
+{
+    pub fn vertex_bytes(&self) -> Vec<u8> {
+        let vertices = self
+            .vertices
+            .iter()
+            .flat_map(|v| (self.out_vert_generator)(v))
+            .collect::<Vec<_>>();
+        log::debug!("Getting verts {} {:?}", vertices.len(), vertices);
+        bytemuck::cast_slice(&vertices).to_vec()
+    }
+
+    pub fn index_bytes(&self) -> &[u8] {
+        log::debug!("Casting indices {}, {:?}", self.indices.len(), self.indices);
+        bytemuck::cast_slice(&self.indices)
+    }
+}
+
+impl Geometry<Vertex, Vertex> {
+    pub fn load(path: &Path) -> Self {
+        let in_vert_generator = Box::new(|raw: RawVertex| Vertex {
+            position: raw.xyz,
+            uv: raw.uv,
+        });
+        let out_vert_generator = Box::new(|v: &Vertex| vec![v.clone()]);
+
+        let extension = path.extension();
+        let gltf_ext = OsStr::new("gltf");
+        let obj_ext = OsStr::new("obj");
+        let dynamic_ext = OsStr::new("dynamic");
+
+        let geometry = if extension == Some(gltf_ext) {
+            Self::load_gltf(&path, in_vert_generator, out_vert_generator)
+        } else if extension == Some(obj_ext) {
+            Self::load_obj(&path, in_vert_generator, out_vert_generator)
+        } else if extension == Some(dynamic_ext) {
+            Self::load_custom(&path, out_vert_generator)
+        } else {
+            panic!("Unsupported file type");
+        };
+
+        geometry
+    }
+
+    fn load_custom(path: &Path, out_vert_generator: OutputVertexGenerator<Vertex, Vertex>) -> Self {
+        let filename = path.file_stem();
+
+        if filename == Some(OsStr::new("rect10x10")) {
+            let size = 10.0;
+            #[rustfmt::skip]
+            let indices = vec![
+                2, 1, 0,
+                2, 3, 1,
+            ];
+            Self::new(
+                path.to_path_buf(),
+                vec![
+                    Vertex {
+                        position: Vec3::new(-1.0, 0.0, 1.0) * size,
+                        uv: Vec2::ZERO,
+                    },
+                    Vertex {
+                        position: Vec3::new(1.0, 0.0, 1.0) * size,
+                        uv: Vec2::X,
+                    },
+                    Vertex {
+                        position: Vec3::new(1.0, 0.0, -1.0) * size,
+                        uv: Vec2::Y,
+                    },
+                    Vertex {
+                        position: Vec3::new(-1.0, 0.0, -1.0) * size,
+                        uv: Vec2::ONE,
+                    },
+                ],
+                out_vert_generator,
+                indices,
+            )
+        } else {
+            panic!("Unsupported dynamic geometry type {:?}", filename);
+        }
     }
 }

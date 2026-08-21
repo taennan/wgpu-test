@@ -1,10 +1,11 @@
 use crate::{
     game::Sprite,
     graphics::{
-        RendererUpdateInput, SpriteInstanceBufferData,
+        RendererUpdateInput,
         buffer::mut_buffer::MutBuffer,
         geometry::Vertex,
         pipeline::{PipelinePool, RenderPassDrawer},
+        sprite::SpriteInstanceBufferData,
     },
 };
 use std::{collections::HashSet, mem};
@@ -117,8 +118,7 @@ impl SpriteRenderer {
         );
 
         RenderPassDrawer::new()
-            .bind_group(screen_size_bind_group)
-            .bind_group(&atlas_bind_group)
+            .bind_groups(&[screen_size_bind_group, atlas_bind_group])
             .vertex_buffer(vertex_buffer.buffer())
             .vertex_buffer(instance_buffer.buffer())
             .index_buffer(index_buffer.buffer(), self.total_indices as u32)

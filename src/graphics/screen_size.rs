@@ -17,6 +17,11 @@ pub struct GpuScreenSize {
 
 impl GpuScreenSize {
     pub fn new(device: &Device) -> Self {
+        let buffer = MutBuffer::builder()
+            .name("Screen Size Buffer")
+            .usages(BufferUsages::UNIFORM | BufferUsages::MAP_WRITE)
+            .build(mem::size_of::<UVec2>() as u64, device);
+
         let bind_group_layout = BindGroupLayoutBuilder::new()
             .entry(
                 ShaderStages::VERTEX,
@@ -28,12 +33,8 @@ impl GpuScreenSize {
             )
             .build(device);
 
-        let buffer = MutBuffer::builder()
-            .name("Screen Size Buffer")
-            .usages(BufferUsages::VERTEX | BufferUsages::UNIFORM | BufferUsages::MAP_WRITE)
-            .build(mem::size_of::<UVec2>() as u64, device);
-
         let bind_group = BindGroupBuilder::new()
+            .name("Screen Size Bind Group")
             .entry(BindingResource::Buffer(
                 buffer.buffer().as_entire_buffer_binding(),
             ))
@@ -59,6 +60,12 @@ impl GpuScreenSize {
         T: Into<UVec2>,
     {
         let size: UVec2 = value.into();
-        self._buffer.write(&[size]);
+        self._buffer.write_then(
+            &[size],
+            move || {
+                log::debug!("Setting screen size buffer to {}", size);
+            },
+            || {},
+        );
     }
 }

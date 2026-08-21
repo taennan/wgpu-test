@@ -1,15 +1,15 @@
 use crate::{
     error::*,
+    game::{Mesh, Sprite},
     graphics::{
-        CameraRenderer,
-        MeshRenderer,
-        SpriteRenderer,
-        //geometry::GeometryPool,
+        camera::CameraRenderer,
+        mesh::{MeshInstanceBufferData, MeshVertexBufferData},
         pipeline::{GlobalBindGroupLayouts, PipelinePool},
+        renderer::Renderer,
         screen_size::GpuScreenSize,
+        sprite::{SpriteInstanceBufferData, SpriteVertexBufferData},
         surface::SurfaceConfigFactory,
         texture::TextureAtlas,
-        //tilemap::renderer::TilemapRenderer,
     },
 };
 use glam::UVec2;
@@ -31,8 +31,8 @@ pub struct GraphicsState {
     pub pipelines: PipelinePool,
     pub screen_size: GpuScreenSize,
     pub camera_renderer: CameraRenderer,
-    pub mesh_renderer: MeshRenderer,
-    pub sprite_renderer: SpriteRenderer,
+    pub mesh_renderer: Renderer<Mesh, MeshVertexBufferData, MeshInstanceBufferData>,
+    pub sprite_renderer: Renderer<Sprite, SpriteVertexBufferData, SpriteInstanceBufferData>,
     //pub tilemap_renderer: TilemapRenderer,
     pub command_buffers: Vec<CommandBuffer>,
 }
@@ -94,8 +94,9 @@ impl GraphicsState {
             &device,
         );
 
-        let mesh_renderer = MeshRenderer::new();
-        let sprite_renderer = SpriteRenderer::new();
+        let mesh_renderer = Renderer::new(&device);
+        let sprite_renderer = Renderer::new(&device);
+        //let sprite_renderer = SpriteRenderer::new();
         //let tilemap_renderer = TilemapRenderer::new();
 
         Ok(Self {

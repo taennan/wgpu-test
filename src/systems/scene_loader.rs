@@ -4,7 +4,7 @@ use crate::{
     systems::AppSystem,
     utils::paths,
 };
-use glam::{UVec2, Vec3};
+use glam::Vec3;
 use std::{iter, path::PathBuf};
 use wgpu::CommandEncoderDescriptor;
 use winit::keyboard::KeyCode;
@@ -32,10 +32,23 @@ impl SceneLoader {
 
         log::info!("Loading sprite test scene");
 
+        let mut encoder = state
+            .graphics
+            .device
+            .create_command_encoder(&CommandEncoderDescriptor {
+                label: Some("SceneLoader Encoder"),
+            });
+
         let texture_key_0 = paths::texture("albatross-dark.jpg");
         let texture_key_1 = paths::texture("albatross-light.jpg");
+        state.graphics.texture_atlas.insert(
+            &[texture_key_0.clone(), texture_key_1.clone()],
+            &state.graphics.device,
+            &mut state.graphics.queue,
+            &mut encoder,
+        );
 
-        let square_mesh_key = paths::geometry("square.gltf");
+        let square_mesh_key = paths::geometry("rect10x10.dynamic");
         let cube_mesh_key = paths::geometry("basic-cube.gltf");
 
         let mut camera = Camera::new();
@@ -45,34 +58,37 @@ impl SceneLoader {
         camera.set_target(Vec3::ZERO);
         //camera.aspect = 0.5;
 
-        let mesh = Mesh::new(cube_mesh_key.clone(), texture_key_0.clone());
-
-        let mut sprite_0 = Sprite::new(square_mesh_key.clone(), texture_key_0.clone());
-        let mut sprite_1 = Sprite::new(square_mesh_key.clone(), texture_key_1.clone());
-        sprite_0.position.x = 200.0;
-        sprite_1.position.x = -200.0;
-
-        let mut encoder = state
-            .graphics
-            .device
-            .create_command_encoder(&CommandEncoderDescriptor {
-                label: Some("SceneLoader Encoder"),
-            });
-
-        state.graphics.texture_atlas.insert(
-            &[texture_key_0.clone(), texture_key_1.clone()],
-            &state.graphics.device,
-            &mut state.graphics.queue,
-            &mut encoder,
+        let mesh = Mesh::new(
+            cube_mesh_key.clone(),
+            texture_key_0.clone(),
+            state
+                .graphics
+                .texture_atlas
+                .atlas_item_index(&texture_key_0)
+                .unwrap(),
         );
-        sprite_0.texture_atlas_item_index = state
-            .graphics
-            .texture_atlas
-            .atlas_item_index(&sprite_0.texture_path);
-        sprite_1.texture_atlas_item_index = state
-            .graphics
-            .texture_atlas
-            .atlas_item_index(&sprite_1.texture_path);
+
+        let mut sprite_0 = Sprite::new(
+            square_mesh_key.clone(),
+            texture_key_0.clone(),
+            state
+                .graphics
+                .texture_atlas
+                .atlas_item_index(&texture_key_0)
+                .unwrap(),
+        );
+        let mut sprite_1 = Sprite::new(
+            square_mesh_key.clone(),
+            texture_key_1.clone(),
+            state
+                .graphics
+                .texture_atlas
+                .atlas_item_index(&texture_key_1)
+                .unwrap(),
+        );
+
+        sprite_0.set_position(sprite_0.position() + Vec3::X * 10.0);
+        sprite_1.set_position(sprite_1.position() + Vec3::X * -10.0);
 
         /*
         state
@@ -82,12 +98,24 @@ impl SceneLoader {
         state.graphics.geometry_pool.load(&cube_mesh_key);
          */
 
+        state
+            .graphics
+            .mesh_renderer
+            .track(&[&mesh], &state.graphics.device, &mut encoder);
+        state.graphics.sprite_renderer.track(
+            &[&sprite_0, &sprite_1],
+            &state.graphics.device,
+            &mut encoder,
+        );
+
         state.game.scene_path = Some(PathBuf::from("Sprite + Mesh Test"));
         state.game.sprites = vec![sprite_0, sprite_1];
         state.game.meshes = vec![mesh];
         state.game.camera = camera;
 
+        log::debug!("Will submit queue");
         state.graphics.queue.submit(iter::once(encoder.finish()));
+        log::debug!("Did submit queue");
     }
 
     fn unload_sprite_test(&self, state: &mut RootState) {
@@ -97,5 +125,7 @@ impl SceneLoader {
         state.game.camera = Camera::new();
         //state.graphics.geometry_pool.clear();
         state.graphics.texture_atlas.clear();
+        state.graphics.sprite_renderer.untrack_all();
+        state.graphics.mesh_renderer.untrack_all();
     }
 }

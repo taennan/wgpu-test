@@ -64,7 +64,7 @@ impl CameraRenderer {
     pub fn update(&mut self, camera: &Camera) {
         let buffer_data = self.projection_matrix(camera).to_cols_array_2d();
 
-        self.buffer.write_async(
+        self.buffer.write_then(
             &buffer_data,
             || {},
             || log::error!("Failed to write to Camera Buffer"),
