@@ -1,7 +1,7 @@
 use crate::graphics::types::ColourData;
 use bytemuck::{Pod, Zeroable};
 use glam::{UVec2, Vec2, Vec3};
-use std::{cmp, mem};
+use std::mem;
 use wgpu::{VertexAttribute, VertexBufferLayout, VertexFormat, VertexStepMode};
 
 #[repr(C)]

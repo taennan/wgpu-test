@@ -1,7 +1,4 @@
-use crate::graphics::{
-    buffer::{BufferSlice, MutBuffer},
-    pipeline::RenderPassDrawer,
-};
+use crate::graphics::buffer::{BufferSlice, MutBuffer};
 use std::{
     collections::{HashMap, HashSet},
     fmt::Debug,
@@ -388,6 +385,11 @@ where
             if !dirty_bytes.is_empty()
                 && let Some(instance_start) = instance_start
             {
+                log::debug!(
+                    "updating instance bytes render_id={}, instance_start={}",
+                    renderable.render_id(),
+                    instance_start
+                );
                 updatable_instance_slices.push(BufferSlice::new(instance_start, dirty_bytes));
             }
         }
@@ -398,22 +400,32 @@ where
     pub fn render(
         &self,
         bind_groups: &[&BindGroup],
-        render_pass: RenderPass<'_>,
+        mut render_pass: RenderPass<'_>,
         pipeline: &RenderPipeline,
     ) {
         if self.renderables.is_empty() {
             return;
         }
 
-        RenderPassDrawer::new()
-            .bind_groups(bind_groups)
-            .vertex_buffer(self.vertex_buffer.buffer())
-            .vertex_buffer(self.instance_buffer.buffer())
-            .index_buffer(
-                self.index_buffer.buffer(),
-                (self.index_buffer.buffer().size() / Self::INDEX_SIZE) as u32,
-            )
-            .instance_range(0..self.renderables.len() as u32)
-            .draw(render_pass, pipeline);
+        render_pass.set_pipeline(pipeline);
+        for (index, bind_group) in bind_groups.iter().enumerate() {
+            render_pass.set_bind_group(index as u32, *bind_group, &[]);
+        }
+
+        for (index, buffer) in [self.vertex_buffer.buffer(), self.instance_buffer.buffer()]
+            .iter()
+            .enumerate()
+        {
+            let buffer_slice = buffer.slice(..);
+            render_pass.set_vertex_buffer(index as u32, buffer_slice);
+        }
+
+        let total_indices = self.index_buffer.buffer().size() / Self::INDEX_SIZE;
+
+        render_pass.set_index_buffer(
+            self.index_buffer.buffer().slice(..),
+            wgpu::IndexFormat::Uint32,
+        );
+        render_pass.draw_indexed(0..total_indices as u32, 0, 0..self.renderables.len() as u32);
     }
 }

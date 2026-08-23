@@ -1,10 +1,5 @@
-use crate::graphics::{
-    //geometry::GeometryPool,
-    texture::TextureAtlas,
-};
 use glam::{U8Vec2, UVec2, Vec4};
 use std::cmp;
-use wgpu::Device;
 
 #[derive(Debug)]
 pub struct ColourData {

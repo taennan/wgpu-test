@@ -1,4 +1,4 @@
-use crate::{app::RootState, error::*, graphics::pipeline::RenderPassFactory, systems::AppSystem};
+use crate::{app::RootState, error::*, graphics::pipeline::render_pass_maker, systems::AppSystem};
 use glam::UVec2;
 use std::iter;
 use wgpu::{CurrentSurfaceTexture, PollType};
@@ -102,13 +102,12 @@ impl WindowRedrawer {
         // Must wrap in blocks so that we can mutably borrow encoder later
         if !state.graphics.pipelines.is_mesh_disabled {
             state.graphics.mesh_renderer.update(&mut state.game.meshes);
-            let mut render_pass_factory = RenderPassFactory::new(&texture_view, &mut encoder);
             state.graphics.mesh_renderer.render(
                 &[
                     state.graphics.camera_renderer.bind_group(),
                     state.graphics.texture_atlas.bind_group(),
                 ],
-                render_pass_factory.start(),
+                render_pass_maker::start(&mut encoder, &texture_view),
                 state.graphics.pipelines.mesh(),
             );
         }
@@ -118,7 +117,6 @@ impl WindowRedrawer {
                 .graphics
                 .sprite_renderer
                 .update(&mut state.game.sprites);
-            let mut render_pass_factory = RenderPassFactory::new(&texture_view, &mut encoder);
             log::debug!("Will start render");
             state.graphics.sprite_renderer.render(
                 &[
@@ -126,7 +124,7 @@ impl WindowRedrawer {
                     state.graphics.texture_atlas.bind_group(),
                 ],
                 //render_pass_factory.start(),
-                render_pass_factory.secondary(),
+                render_pass_maker::secondary(&mut encoder, &texture_view),
                 state.graphics.pipelines.sprite(),
             );
         }

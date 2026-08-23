@@ -55,6 +55,7 @@ fn vertex_position(vertex: f32, instance: f32, scale: f32, screen_dimension: u32
 
 @fragment
 fn fragment_main(input: VertexOutput) -> @location(0) vec4<f32> {
+    return vec4(1.0, 1.0, 1.0, 1.0);
     var atlas_sample_input: AtlasSampleInput;
     atlas_sample_input.packed_colour = input.packed_colour;
     atlas_sample_input.padding = atlas_padding;
