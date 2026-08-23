@@ -249,37 +249,46 @@ impl Geometry<Vertex, Vertex> {
         let filename = path.file_stem();
 
         if filename == Some(OsStr::new("rect10x10")) {
-            let size = 10.0;
-            #[rustfmt::skip]
-            let indices = vec![
-                2, 1, 0,
-                2, 3, 1,
-            ];
-            Self::new(
-                path.to_path_buf(),
-                vec![
-                    Vertex {
-                        position: Vec3::new(-1.0, 0.0, 1.0) * size,
-                        uv: Vec2::ZERO,
-                    },
-                    Vertex {
-                        position: Vec3::new(1.0, 0.0, 1.0) * size,
-                        uv: Vec2::X,
-                    },
-                    Vertex {
-                        position: Vec3::new(1.0, 0.0, -1.0) * size,
-                        uv: Vec2::Y,
-                    },
-                    Vertex {
-                        position: Vec3::new(-1.0, 0.0, -1.0) * size,
-                        uv: Vec2::ONE,
-                    },
-                ],
-                out_vert_generator,
-                indices,
-            )
+            Self::load_custom_square(path, 10.0, out_vert_generator)
+        } else if filename == Some(OsStr::new("rect1x1")) {
+            Self::load_custom_square(path, 1.0, out_vert_generator)
         } else {
             panic!("Unsupported dynamic geometry type {:?}", filename);
         }
+    }
+
+    fn load_custom_square(
+        path: &Path,
+        size: f32,
+        out_vert_generator: OutputVertexGenerator<Vertex, Vertex>,
+    ) -> Self {
+        #[rustfmt::skip]
+        let indices = vec![
+            2, 1, 0,
+            3, 2, 0,
+        ];
+        Self::new(
+            path.to_path_buf(),
+            vec![
+                Vertex {
+                    position: Vec3::new(-1.0, 1.0, 0.0) * size,
+                    uv: Vec2::ZERO,
+                },
+                Vertex {
+                    position: Vec3::new(1.0, 1.0, 0.0) * size,
+                    uv: Vec2::X,
+                },
+                Vertex {
+                    position: Vec3::new(1.0, -1.0, 0.0) * size,
+                    uv: Vec2::ONE,
+                },
+                Vertex {
+                    position: Vec3::new(-1.0, -1.0, 0.0) * size,
+                    uv: Vec2::Y,
+                },
+            ],
+            out_vert_generator,
+            indices,
+        )
     }
 }

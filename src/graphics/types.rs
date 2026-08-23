@@ -6,15 +6,6 @@ use glam::{U8Vec2, UVec2, Vec4};
 use std::cmp;
 use wgpu::Device;
 
-pub struct RendererUpdateInput<'a> {
-    pub texture_atlas: &'a TextureAtlas,
-    //pub geometry: &'a GeometryPool,
-    //pub pipelines: &'a mut PipelinePool,
-    pub device: &'a Device,
-    //pub queue: &'a mut Queue,
-    //pub encoder: &'a mut CommandEncoder,
-}
-
 #[derive(Debug)]
 pub struct ColourData {
     pub atlas_disabled: bool,

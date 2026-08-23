@@ -1,9 +1,4 @@
-use crate::{
-    app::RootState,
-    error::*,
-    graphics::{RendererUpdateInput, pipeline::RenderPassFactory},
-    systems::AppSystem,
-};
+use crate::{app::RootState, error::*, graphics::pipeline::RenderPassFactory, systems::AppSystem};
 use glam::UVec2;
 use std::iter;
 use wgpu::{CurrentSurfaceTexture, PollType};
@@ -102,12 +97,6 @@ impl WindowRedrawer {
                     label: Some("Render Encoder"),
                 });
 
-        let mut renderer_update_input = RendererUpdateInput {
-            texture_atlas: &state.graphics.texture_atlas,
-            //geometry: &state.graphics.geometry_pool,
-            device: &state.graphics.device,
-        };
-
         state.graphics.camera_renderer.update(&state.game.camera);
 
         // Must wrap in blocks so that we can mutably borrow encoder later
@@ -120,7 +109,7 @@ impl WindowRedrawer {
                     state.graphics.texture_atlas.bind_group(),
                 ],
                 render_pass_factory.start(),
-                &state.graphics.pipelines.mesh(),
+                state.graphics.pipelines.mesh(),
             );
         }
         if !state.graphics.pipelines.is_sprite_disabled {

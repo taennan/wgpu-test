@@ -23,7 +23,8 @@ struct VertexInput {
     // Per instance
     @location(2) packed_colour: vec2<u32>,
     @location(3) position: vec3<f32>,
-};
+    @location(4) scale: vec2<f32>,
+}
 
 struct VertexOutput {
     @builtin(position) clip_position: vec4<f32>,
@@ -37,25 +38,23 @@ fn vertex_main(input: VertexInput) -> VertexOutput {
     out.uv = input.uv;
     out.packed_colour = input.packed_colour;
     out.clip_position = vec4(
-        vertex_position(input.xyz.x, input.position.x, screen_size.x),
-        vertex_position(input.xyz.y, input.position.y, screen_size.y),
+        vertex_position(input.xyz.x, input.position.x, input.scale.x, screen_size.x),
+        vertex_position(input.xyz.y, input.position.y, input.scale.y, screen_size.y),
         input.xyz.z,
         1.0
     );
     return out;
 }
 
-fn vertex_position(vertex: f32, instance: f32, screen_dimension: u32) -> f32 {
+fn vertex_position(vertex: f32, instance: f32, scale: f32, screen_dimension: u32) -> f32 {
     let normalized_screen = 2.0 / f32(screen_dimension);
     let normalized_instance = instance * normalized_screen;
     let normalized_vertex = vertex * normalized_screen;
-    return normalized_vertex + normalized_instance;
+    return normalized_vertex * scale + normalized_instance;
 }
 
 @fragment
 fn fragment_main(input: VertexOutput) -> @location(0) vec4<f32> {
-    return vec4(1.0, 1.0, 1.0, 1.0);
-    /*
     var atlas_sample_input: AtlasSampleInput;
     atlas_sample_input.packed_colour = input.packed_colour;
     atlas_sample_input.padding = atlas_padding;
@@ -63,7 +62,6 @@ fn fragment_main(input: VertexOutput) -> @location(0) vec4<f32> {
 
     let sample = atlas_sample(atlas_sample_input);
     return sample;
-    */
 }
 
 struct AtlasSampleInput {

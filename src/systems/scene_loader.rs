@@ -4,7 +4,7 @@ use crate::{
     systems::AppSystem,
     utils::paths,
 };
-use glam::Vec3;
+use glam::{Vec2, Vec3};
 use std::{iter, path::PathBuf};
 use wgpu::CommandEncoderDescriptor;
 use winit::keyboard::KeyCode;
@@ -48,13 +48,13 @@ impl SceneLoader {
             &mut encoder,
         );
 
-        let square_mesh_key = paths::geometry("rect10x10.dynamic");
+        let square_mesh_key = paths::geometry("rect1x1.dynamic");
         let cube_mesh_key = paths::geometry("basic-cube.gltf");
 
         let mut camera = Camera::new();
         camera.position.x = -5.0;
-        camera.position.z = -5.0;
-        camera.position.y = -30.0;
+        camera.position.y = -5.0;
+        camera.position.z = -30.0;
         camera.set_target(Vec3::ZERO);
         //camera.aspect = 0.5;
 
@@ -87,16 +87,10 @@ impl SceneLoader {
                 .unwrap(),
         );
 
-        sprite_0.set_position(sprite_0.position() + Vec3::X * 10.0);
-        sprite_1.set_position(sprite_1.position() + Vec3::X * -10.0);
-
-        /*
-        state
-            .graphics
-            .geometry_pool
-            .insert_rect(&square_mesh_key, UVec2::new(200, 150));
-        state.graphics.geometry_pool.load(&cube_mesh_key);
-         */
+        sprite_0.set_scale(Vec2::ONE * 50.0);
+        sprite_1.set_scale(Vec2::ONE * 150.0);
+        sprite_0.set_position(Vec3::X * 150.0);
+        sprite_1.set_position(-Vec3::X * 150.0);
 
         state
             .graphics
