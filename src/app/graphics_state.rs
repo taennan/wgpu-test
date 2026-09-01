@@ -9,7 +9,7 @@ use crate::{
         screen_size::GpuScreenSize,
         sprite::{SpriteInstanceBufferData, SpriteVertexBufferData},
         surface::SurfaceConfigFactory,
-        texture::TextureAtlas,
+        texture::{TextureAtlas, TextureAtlasDumper},
     },
 };
 use glam::UVec2;
@@ -27,6 +27,7 @@ pub struct GraphicsState {
     pub device: Device,
     pub queue: Queue,
     pub texture_atlas: TextureAtlas,
+    pub atlas_dumper: TextureAtlasDumper,
     //pub geometry_pool: GeometryPool,
     pub pipelines: PipelinePool,
     pub screen_size: GpuScreenSize,
@@ -82,6 +83,7 @@ impl GraphicsState {
         let camera_renderer = CameraRenderer::new(&device);
 
         let texture_atlas = TextureAtlas::new(&device);
+        let atlas_dumper = TextureAtlasDumper::new();
         //let geometry_pool = GeometryPool::new();
 
         let pipelines = PipelinePool::new(
@@ -105,6 +107,7 @@ impl GraphicsState {
             device,
             queue,
             texture_atlas,
+            atlas_dumper,
             //geometry_pool,
             pipelines,
             screen_size,

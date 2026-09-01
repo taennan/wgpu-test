@@ -1,4 +1,5 @@
 pub mod app_closer;
+pub mod atlas_dumper;
 pub mod camera_mover;
 pub mod common;
 pub mod key_mapper;
@@ -7,6 +8,7 @@ pub mod scene_loader;
 pub mod window_redrawer;
 
 pub use app_closer::*;
+pub use atlas_dumper::*;
 pub use camera_mover::*;
 pub use common::*;
 pub use key_mapper::*;

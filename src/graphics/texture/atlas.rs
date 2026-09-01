@@ -26,6 +26,7 @@ pub struct TextureAtlas {
     bind_group: BindGroup,
     atlas_padding_buffer: Buffer,
     atlas_items_buffer: MutBuffer,
+    texture: Texture,
     texture_view: TextureView,
     sampler: Sampler,
     items: HashMap<PathBuf, AtlasItem>,
@@ -88,7 +89,7 @@ impl TextureAtlas {
 
     fn new_with_padding(device: &Device, padding: u32) -> Self {
         let texture_size = UVec2::ONE + UVec2::new(padding, padding) * 2;
-        let (_, texture_view) = Self::init_gpu_texture(texture_size, device);
+        let (texture, texture_view) = Self::init_gpu_texture(texture_size, device);
 
         let sampler_address_mode = AddressMode::ClampToEdge;
         let sampler = device.create_sampler(&SamplerDescriptor {
@@ -121,6 +122,7 @@ impl TextureAtlas {
             bind_group_layout,
             atlas_padding_buffer,
             atlas_items_buffer,
+            texture,
             texture_view,
             sampler,
             items: HashMap::default(),
@@ -229,6 +231,10 @@ impl TextureAtlas {
         self.items
             .get(texture_path.as_ref())
             .map(|item| item.buffer_index as u16)
+    }
+
+    pub fn texture(&self) -> &Texture {
+        &self.texture
     }
 
     pub fn texture_view(&self) -> &TextureView {

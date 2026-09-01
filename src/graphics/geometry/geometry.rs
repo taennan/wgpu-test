@@ -18,8 +18,6 @@ pub struct Geometry<D, V> {
     indices: Vec<u32>,
 }
 
-pub type MeshGeometry = Geometry<Vertex, Vertex>;
-//pub type TilemapGeometry = Geometry<>;
 pub type InputVertexGenerator<D> = Box<dyn Fn(RawVertex) -> D>;
 pub type OutputVertexGenerator<D, V> = Box<dyn Fn(&D) -> Vec<V>>;
 

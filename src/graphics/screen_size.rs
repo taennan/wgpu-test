@@ -61,7 +61,7 @@ impl GpuScreenSize {
     {
         let size: UVec2 = value.into();
         self._buffer.write_then(
-            &[size],
+            Box::from(size),
             move || {
                 log::debug!("Setting screen size buffer to {}", size);
             },

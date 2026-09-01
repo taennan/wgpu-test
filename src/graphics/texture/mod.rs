@@ -1,6 +1,8 @@
+mod atlas;
+mod atlas_dumper;
 mod buffer_data;
 mod image;
-mod texture_atlas;
 mod utils;
 
-pub use texture_atlas::TextureAtlas;
+pub use atlas::TextureAtlas;
+pub use atlas_dumper::TextureAtlasDumper;

@@ -3,7 +3,7 @@ use bytemuck::Pod;
 use std::{
     mem,
     sync::{
-        Arc,
+        Arc, Mutex,
         atomic::{AtomicBool, Ordering},
     },
 };
@@ -104,17 +104,33 @@ impl MutBuffer {
 }
 
 impl MutBuffer {
-    pub fn write<T>(&mut self, data: &[T])
-    where
-        T: Pod + Send + Sync,
-    {
-        self.write_then(data, || {}, || {});
+    pub fn read(&self, dest: Arc<Mutex<[u8]>>) {
+        self.read_then(dest, || {}, || {});
     }
 
-    pub fn write_then<T, F, E>(&mut self, data: &[T], ok_callback: F, err_callback: E)
+    pub fn read_then<F, E>(&self, dest: Arc<Mutex<[u8]>>, ok_callback: F, err_callback: E)
     where
-        T: Pod + Send + Sync,
         F: FnOnce() + WasmNotSend + 'static,
+        E: FnOnce() + WasmNotSend + 'static,
+    {
+        self.map_then(
+            MapMode::Read,
+            move |buffer| {
+                let view = buffer
+                    .get_mapped_range(..)
+                    .expect("Failed to get buffer view");
+
+                let mut slice = dest.lock().unwrap();
+                slice.copy_from_slice(&view);
+                (ok_callback)();
+            },
+            err_callback,
+        );
+    }
+
+    fn map_then<F, E>(&self, map_mode: MapMode, ok_callback: F, err_callback: E)
+    where
+        F: FnOnce(&Buffer) + WasmNotSend + 'static,
         E: FnOnce() + WasmNotSend + 'static,
     {
         if self.is_mapped() {
@@ -122,33 +138,44 @@ impl MutBuffer {
             return;
         }
 
-        let data = data.to_vec();
         let inner = self.inner.clone();
-        //let has_mapped_lock = self.has_mapped_lock.clone();
         let has_mapped = self.has_mapped.clone();
-
-        //rw_lockpick::write(&has_mapped_lock, true);
-        has_mapped.store(true, Ordering::Relaxed);
-
         self.inner
-            .map_async(MapMode::Write, 0..inner.size(), move |buffer_result| {
+            .map_async(map_mode, 0..self.inner.size(), move |buffer_result| {
                 match buffer_result {
-                    Ok(_) => {
-                        let mut view = inner.get_mapped_range_mut(..).unwrap();
-                        view.copy_from_slice(bytemuck::cast_slice(&data));
-                        mem::drop(view);
-
-                        ok_callback();
-                    }
-                    Err(_) => {
-                        err_callback();
-                    }
-                };
+                    Ok(_) => ok_callback(&inner),
+                    Err(_) => err_callback(),
+                }
 
                 inner.unmap();
-                //rw_lockpick::write(&has_mapped_lock, false);
                 has_mapped.store(false, Ordering::Relaxed);
             });
+    }
+
+    pub fn write<T>(&mut self, data: Box<T>)
+    where
+        T: Pod + Send + Sync,
+    {
+        self.write_then(data, || {}, || {});
+    }
+
+    pub fn write_then<T, F, E>(&mut self, data: Box<T>, ok_callback: F, err_callback: E)
+    where
+        T: Pod + Send + Sync,
+        F: FnOnce() + WasmNotSend + 'static,
+        E: FnOnce() + WasmNotSend + 'static,
+    {
+        self.map_then(
+            MapMode::Write,
+            move |buffer| {
+                let mut view = buffer.get_mapped_range_mut(..).unwrap();
+                view.copy_from_slice(&[bytemuck::cast(*data)]);
+                mem::drop(view);
+
+                ok_callback();
+            },
+            err_callback,
+        );
     }
 
     pub fn write_slices(&mut self, slices: Vec<BufferSlice>) {
@@ -168,37 +195,25 @@ impl MutBuffer {
             return;
         }
 
-        let inner = self.inner.clone();
-        let has_mapped = self.has_mapped.clone();
-
-        has_mapped.store(true, Ordering::Relaxed);
-
-        self.inner
-            .map_async(MapMode::Write, .., move |buffer_result| {
-                match buffer_result {
-                    Ok(_) => {
-                        for slice in &slices {
-                            let range = slice.start..(slice.start + slice.bytes.len() as u64);
-                            let mut view = match inner.get_mapped_range_mut(range) {
-                                Ok(view) => view,
-                                Err(err) => {
-                                    log::error!("Failed to get mapped range: {:?}", err);
-                                    continue;
-                                }
-                            };
-
-                            view.copy_from_slice(&slice.bytes);
+        self.map_then(
+            MapMode::Write,
+            move |buffer| {
+                for slice in &slices {
+                    let range = slice.start..(slice.start + slice.bytes.len() as u64);
+                    let mut view = match buffer.get_mapped_range_mut(range) {
+                        Ok(view) => view,
+                        Err(err) => {
+                            log::error!("Failed to get mapped range: {:?}", err);
+                            continue;
                         }
+                    };
 
-                        ok_callback();
-                    }
-                    Err(_) => {
-                        err_callback();
-                    }
-                };
+                    view.copy_from_slice(&slice.bytes);
+                }
 
-                inner.unmap();
-                has_mapped.store(false, Ordering::Relaxed);
-            });
+                ok_callback();
+            },
+            err_callback,
+        );
     }
 }
