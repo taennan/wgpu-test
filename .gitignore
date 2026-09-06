@@ -5,3 +5,5 @@ src/assets/*/**
 .env
 !.env.example
 !.gitkeep
+
+.zed

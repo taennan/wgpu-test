@@ -1,6 +1,7 @@
 pub mod bind_group;
 pub mod buffer;
 pub mod camera;
+pub mod colour;
 pub mod geometry;
 pub mod mesh;
 pub mod pipeline;
@@ -10,6 +11,5 @@ pub mod sprite;
 pub mod surface;
 pub mod texture;
 pub mod tilemap;
-pub mod types;
 
-pub use types::*;
+pub use colour::*;

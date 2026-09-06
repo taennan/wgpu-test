@@ -10,24 +10,16 @@ impl AppSystem for AtlasDumper {
             return;
         }
 
-        log::debug!("Created encoder for atlas dump");
-        let mut encoder =
-            state
-                .graphics
-                .device
-                .create_command_encoder(&wgpu::CommandEncoderDescriptor {
-                    label: Some("Render Encoder"),
-                });
+        let dump_path = paths::texture("atlas-dump.png");
+        log::info!("Dumping texture atlas to {:?}", dump_path);
 
-        state
-            .graphics
-            .atlas_dumper
-            .dump_to_png(
-                paths::texture("atlas.png"),
-                state.graphics.texture_atlas.texture(),
-                &state.graphics.device,
-                &mut encoder,
-            )
-            .expect("Failed to dump atlas texture");
+        state.graphics.atlas_dumper.dump_to_png(
+            &dump_path,
+            state.graphics.texture_atlas.texture(),
+            &state.graphics.device,
+            &state.graphics.queue,
+        );
+
+        log::info!("Dumped texture atlas to {:?}", dump_path);
     }
 }

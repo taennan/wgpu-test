@@ -15,7 +15,7 @@ impl BufferSlice {
         }
     }
 
-    pub fn condensed(mut slices: Vec<BufferSlice>) -> Vec<BufferSlice> {
+    pub fn condensed(mut slices: Box<[BufferSlice]>) -> Vec<BufferSlice> {
         slices.sort_by_key(|slice| slice.start);
 
         let mut condensed = Vec::new();
@@ -95,7 +95,7 @@ mod tests {
                 ],
             ),
         ] {
-            let actual = BufferSlice::condensed(input);
+            let actual = BufferSlice::condensed(input.into_boxed_slice());
             assert_eq!(actual, expected);
         }
     }

@@ -3,7 +3,7 @@ use crate::{
     graphics::{ColourData, geometry::Vertex},
 };
 use bytemuck::{Pod, Zeroable};
-use glam::{U8Vec2, UVec2, Vec2, Vec3};
+use glam::{UVec2, Vec2, Vec3};
 use std::mem;
 use wgpu::{VertexAttribute, VertexBufferLayout, VertexFormat, VertexStepMode};
 
@@ -16,17 +16,19 @@ pub struct MeshInstanceBufferData {
     quat_xy: Vec2,
     quat_zw: Vec2,
     position: Vec3,
+    _padding: u32,
 }
 
 impl From<&Mesh> for MeshInstanceBufferData {
     fn from(mesh: &Mesh) -> Self {
-        let colour = ColourData::textured(mesh.texture_atlas_item_index, U8Vec2::ZERO);
+        let colour = ColourData::textured(mesh.texture_atlas_item_index);
 
         Self {
             packed_colour: colour.into(),
             quat_xy: Vec2::ZERO,
             quat_zw: Vec2::ZERO,
             position: mesh.position,
+            _padding: 0,
         }
     }
 }
@@ -43,6 +45,9 @@ impl MeshInstanceBufferData {
 
     const POSITION_OFFSET: u64 = Self::QUAT_ZW_OFFSET + Self::QUAT_ZW_FORMAT.size();
     const POSITION_FORMAT: VertexFormat = VertexFormat::Float32x3;
+
+    const PADDING_OFFSET: u64 = Self::POSITION_OFFSET + Self::POSITION_FORMAT.size();
+    const PADDING_FORMAT: VertexFormat = VertexFormat::Uint32;
 
     pub const LAYOUT: VertexBufferLayout<'static> = VertexBufferLayout {
         array_stride: mem::size_of::<Self>() as u64,
@@ -67,6 +72,11 @@ impl MeshInstanceBufferData {
                 shader_location: 5,
                 offset: Self::POSITION_OFFSET,
                 format: Self::POSITION_FORMAT,
+            },
+            VertexAttribute {
+                shader_location: 6,
+                offset: Self::PADDING_OFFSET,
+                format: Self::PADDING_FORMAT,
             },
         ],
     };

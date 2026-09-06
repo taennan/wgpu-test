@@ -326,26 +326,24 @@ where
         }
 
         for (dest_index, instance) in ordered_instances.into_iter().enumerate() {
+            let dest_index = dest_index as u64;
             self.renderables.insert(
                 instance.render_id,
                 RenderableData {
                     geometry_key: instance.geometry_key,
-                    instance_index: dest_index as u64,
+                    instance_index: dest_index,
                 },
             );
             match instance.bytes {
                 CopyBytes::Raw(bytes) => {
-                    instance_slices.push(BufferSlice::new(
-                        Self::INSTANCE_SIZE * dest_index as u64,
-                        bytes,
-                    ));
+                    instance_slices.push(BufferSlice::new(Self::INSTANCE_SIZE * dest_index, bytes));
                 }
                 CopyBytes::Src { start, size } => {
                     encoder.copy_buffer_to_buffer(
                         self.instance_buffer.buffer(),
                         start,
                         instance_buffer.buffer(),
-                        Self::INSTANCE_SIZE * dest_index as u64,
+                        Self::INSTANCE_SIZE * dest_index,
                         size,
                     );
                 }

@@ -1,10 +1,14 @@
-use crate::graphics::{
-    bind_group::{BindGroupBuilder, BindGroupLayoutBuilder},
-    buffer::{MutBuffer, MutBufferBuilder},
-    texture::{buffer_data::AtlasItemMetaBufferData, image::AtlasImage, utils},
+use crate::{
+    graphics::{
+        bind_group::{BindGroupBuilder, BindGroupLayoutBuilder},
+        buffer::{MutBuffer, MutBufferBuilder},
+        texture::{buffer_data::AtlasItemMetaBufferData, image::AtlasImage, utils},
+    },
+    utils::multiples,
 };
 use glam::UVec2;
 use guillotiere::{AllocId, Allocation, AtlasAllocator};
+use image::DynamicImage;
 use std::{
     collections::HashMap,
     fmt::{self, Debug, Formatter},
@@ -12,11 +16,11 @@ use std::{
 };
 use wgpu::{
     AddressMode, BindGroup, BindGroupLayout, BindingResource, BindingType, Buffer, BufferBinding,
-    BufferBindingType, BufferUsages, CommandEncoder, Device, Extent3d, FilterMode,
-    MipmapFilterMode, Origin3d, Queue, Sampler, SamplerBindingType, SamplerDescriptor,
-    ShaderStages, TexelCopyBufferLayout, TexelCopyTextureInfo, Texture, TextureAspect,
-    TextureDescriptor, TextureDimension, TextureFormat, TextureSampleType, TextureUsages,
-    TextureView, TextureViewDescriptor, TextureViewDimension,
+    BufferBindingType, BufferUsages, COPY_BYTES_PER_ROW_ALIGNMENT, CommandEncoder, Device,
+    Extent3d, FilterMode, MipmapFilterMode, Origin3d, Queue, Sampler, SamplerBindingType,
+    SamplerDescriptor, ShaderStages, TexelCopyBufferLayout, TexelCopyTextureInfo, Texture,
+    TextureAspect, TextureDescriptor, TextureDimension, TextureFormat, TextureSampleType,
+    TextureUsages, TextureView, TextureViewDescriptor, TextureViewDimension,
     util::{BufferInitDescriptor, DeviceExt},
 };
 
@@ -26,7 +30,6 @@ pub struct TextureAtlas {
     bind_group: BindGroup,
     atlas_padding_buffer: Buffer,
     atlas_items_buffer: MutBuffer,
-    texture: Texture,
     texture_view: TextureView,
     sampler: Sampler,
     items: HashMap<PathBuf, AtlasItem>,
@@ -36,28 +39,33 @@ pub struct TextureAtlas {
 #[derive(Clone, Debug)]
 struct AtlasItem {
     pub allocation_id: AllocId,
-    pub total_dependants: u32,
     pub buffer_index: u16,
     pub size: UVec2,
+    pub image_size: UVec2,
     pub position: UVec2,
     pub divisions: UVec2,
 }
 
 impl AtlasItem {
-    fn from_allocation(allocation: &Allocation) -> Self {
-        return Self::from_allocation_with_divisions(allocation, UVec2::ONE);
+    fn new(allocation: &Allocation, image_size: UVec2, buffer_index: u16) -> Self {
+        return Self::new_with_divisions(allocation, image_size, buffer_index, UVec2::ONE);
     }
 
-    fn from_allocation_with_divisions(allocation: &Allocation, divisions: UVec2) -> Self {
+    fn new_with_divisions(
+        allocation: &Allocation,
+        image_size: UVec2,
+        buffer_index: u16,
+        divisions: UVec2,
+    ) -> Self {
         let rect = allocation.rectangle;
         let size = UVec2::new(rect.size().width as u32, rect.size().height as u32);
         let position = UVec2::new(rect.min.x as u32, rect.min.y as u32);
 
         Self {
             allocation_id: allocation.id,
-            total_dependants: 0,
-            buffer_index: 0,
+            buffer_index,
             size,
+            image_size,
             position,
             divisions,
         }
@@ -89,7 +97,7 @@ impl TextureAtlas {
 
     fn new_with_padding(device: &Device, padding: u32) -> Self {
         let texture_size = UVec2::ONE + UVec2::new(padding, padding) * 2;
-        let (texture, texture_view) = Self::init_gpu_texture(texture_size, device);
+        let (_, texture_view) = Self::init_gpu_texture(texture_size, device);
 
         let sampler_address_mode = AddressMode::ClampToEdge;
         let sampler = device.create_sampler(&SamplerDescriptor {
@@ -122,7 +130,6 @@ impl TextureAtlas {
             bind_group_layout,
             atlas_padding_buffer,
             atlas_items_buffer,
-            texture,
             texture_view,
             sampler,
             items: HashMap::default(),
@@ -197,6 +204,8 @@ impl TextureAtlas {
             )
             .build(device);
 
+        log::debug!("Writing atlas items meta to buffer {:?}", atlas_items_meta);
+
         let atlas_items_buffer_builder = MutBufferBuilder::default()
             .name("Atlas Items Metadata Buffer")
             .usages(BufferUsages::MAP_WRITE | BufferUsages::STORAGE);
@@ -234,7 +243,7 @@ impl TextureAtlas {
     }
 
     pub fn texture(&self) -> &Texture {
-        &self.texture
+        &self.texture_view().texture()
     }
 
     pub fn texture_view(&self) -> &TextureView {
@@ -271,103 +280,27 @@ impl TextureAtlas {
         queue: &mut Queue,
         encoder: &mut CommandEncoder,
     ) {
-        let new_textures = textures
-            .iter()
-            .filter(|p| !self.items.contains_key(*p))
-            .collect::<Vec<_>>();
-        let new_images = new_textures
-            .iter()
-            .map(AtlasImage::open)
-            .collect::<Vec<_>>();
-        if new_images.is_empty() {
-            return;
-        }
-
         let original_size = self.size();
-        let mut new_items = Vec::<(AtlasItem, &AtlasImage)>::with_capacity(new_images.len());
+        let new_items = self.insert_new_atlas_items(textures);
 
-        for image in &new_images {
-            let image_sizes = new_images
-                .iter()
-                .map(|v| v.size)
-                .chain(self.items.values().map(|v| v.size))
-                .collect::<Vec<_>>();
-            let increment_size = utils::uvec2_to_size(utils::average_uvec2(&image_sizes));
-            let size = utils::uvec2_to_size(image.size);
-
-            let mut allocation = self.allocator.allocate(size);
-            while allocation.is_none() {
-                let new_size = self.allocator.size() + increment_size;
-                self.allocator.grow(new_size);
-                allocation = self.allocator.allocate(size);
-            }
-
-            let allocation = allocation.expect("Image was not allocated");
-            let atlas_item = AtlasItem::from_allocation(&allocation);
-            let item_key = image.path.clone();
-            self.items.insert(item_key, atlas_item.clone());
-            new_items.push((atlas_item, image));
-        }
+        self.grow_allocator_to_mappable_mutliple();
 
         let did_grow = self.size() != original_size;
         if did_grow {
-            let (new_texture, new_texture_view) = Self::init_gpu_texture(self.size(), device);
-            encoder.copy_texture_to_texture(
-                TexelCopyTextureInfo {
-                    texture: self.texture_view().texture(),
-                    mip_level: 0,
-                    origin: Origin3d::ZERO,
-                    aspect: TextureAspect::All,
-                },
-                TexelCopyTextureInfo {
-                    texture: &new_texture,
-                    mip_level: 0,
-                    origin: Origin3d::ZERO,
-                    aspect: TextureAspect::All,
-                },
-                self.texture_view().texture().size(),
-            );
-            self.texture_view = new_texture_view;
+            self.migrate_to_new_texture(device, encoder);
         }
 
-        for (item, image) in new_items {
-            let rgba_bytes = image.image.to_rgba8();
-            let image_bytes_per_row = Some(image.size.x * 4);
+        self.write_new_atlas_items_to_texture(&new_items, queue);
 
-            queue.write_texture(
-                TexelCopyTextureInfo {
-                    texture: self.texture_view().texture(),
-                    mip_level: 0,
-                    origin: Origin3d {
-                        x: item.position.x,
-                        y: item.position.y,
-                        z: 0,
-                    },
-                    aspect: TextureAspect::All,
-                },
-                &rgba_bytes,
-                TexelCopyBufferLayout {
-                    offset: 0,
-                    bytes_per_row: image_bytes_per_row,
-                    rows_per_image: None,
-                },
-                Extent3d {
-                    width: image.size.x,
-                    height: image.size.y,
-                    depth_or_array_layers: 1,
-                },
-            );
-        }
+        let mut atlas_items = self.items.values_mut().collect::<Vec<_>>();
+        atlas_items.sort_by(|a, b| {
+            a.allocation_id
+                .serialize()
+                .cmp(&b.allocation_id.serialize())
+        });
 
-        for texture_path in textures {
-            if let Some(item) = self.items.get_mut(texture_path) {
-                item.total_dependants += 1;
-            }
-        }
-
-        let atlas_items_meta = self
-            .items
-            .values_mut()
+        let atlas_items_meta = atlas_items
+            .into_iter()
             .enumerate()
             .map(|(index, item)| {
                 item.buffer_index = index as u16;
@@ -376,6 +309,9 @@ impl TextureAtlas {
                 atlas_item_meta
             })
             .collect::<Vec<_>>();
+
+        log::debug!("AtlasItemsMeta = {:?}", atlas_items_meta);
+
         let (bind_group_layout, bind_group, atlas_items_buffer) = Self::init_atlas_items_buffer(
             &atlas_items_meta,
             &self.texture_view,
@@ -389,6 +325,110 @@ impl TextureAtlas {
         queue.submit([]);
     }
 
+    fn insert_new_atlas_items(&mut self, textures: &[PathBuf]) -> Vec<(AtlasItem, DynamicImage)> {
+        let new_textures = textures
+            .iter()
+            .filter(|p| !self.items.contains_key(*p))
+            .collect::<Vec<_>>();
+        let new_images = new_textures
+            .iter()
+            .map(AtlasImage::open)
+            .collect::<Vec<_>>();
+        if new_images.is_empty() {
+            return vec![];
+        }
+
+        let image_sizes = new_images
+            .iter()
+            .map(|v| v.size)
+            .chain(self.items.values().map(|v| v.size))
+            .collect::<Vec<_>>();
+        let increment_size = utils::uvec2_to_size(utils::average_uvec2(&image_sizes));
+
+        let mut new_items = Vec::with_capacity(new_images.len());
+        for image in new_images.into_iter() {
+            let size = utils::uvec2_to_size(image.size);
+
+            let mut allocation = self.allocator.allocate(size);
+            while allocation.is_none() {
+                let new_size = self.allocator.size() + increment_size;
+                self.allocator.grow(new_size);
+                allocation = self.allocator.allocate(size);
+            }
+
+            let allocation = allocation.expect("Image was not allocated");
+            let atlas_item = AtlasItem::new(&allocation, image.size, 0);
+            let item_key = image.path.clone();
+
+            self.items.insert(item_key, atlas_item.clone());
+            new_items.push((atlas_item, image.image));
+        }
+
+        new_items
+    }
+
+    fn grow_allocator_to_mappable_mutliple(&mut self) {
+        let mappable_multiple = COPY_BYTES_PER_ROW_ALIGNMENT;
+        let x = multiples::next_nearest(self.size().x, mappable_multiple);
+        let y = multiples::next_nearest(self.size().y, mappable_multiple);
+
+        self.allocator.grow(utils::uvec2_to_size(UVec2::new(x, y)));
+    }
+
+    fn migrate_to_new_texture(&mut self, device: &Device, encoder: &mut CommandEncoder) {
+        let (new_texture, new_texture_view) = Self::init_gpu_texture(self.size(), device);
+        encoder.copy_texture_to_texture(
+            TexelCopyTextureInfo {
+                texture: self.texture_view().texture(),
+                mip_level: 0,
+                origin: Origin3d::ZERO,
+                aspect: TextureAspect::All,
+            },
+            TexelCopyTextureInfo {
+                texture: &new_texture,
+                mip_level: 0,
+                origin: Origin3d::ZERO,
+                aspect: TextureAspect::All,
+            },
+            self.texture_view().texture().size(),
+        );
+        self.texture_view = new_texture_view;
+    }
+
+    fn write_new_atlas_items_to_texture(
+        &mut self,
+        new_items: &[(AtlasItem, DynamicImage)],
+        queue: &Queue,
+    ) {
+        for (item, image) in new_items {
+            let image_bytes_per_row = Some(item.image_size.x * 4);
+
+            queue.write_texture(
+                TexelCopyTextureInfo {
+                    texture: self.texture_view().texture(),
+                    mip_level: 0,
+                    origin: Origin3d {
+                        x: item.position.x,
+                        y: item.position.y,
+                        z: 0,
+                    },
+                    aspect: TextureAspect::All,
+                },
+                &image.to_rgba8(),
+                TexelCopyBufferLayout {
+                    offset: 0,
+                    bytes_per_row: image_bytes_per_row,
+                    rows_per_image: None,
+                },
+                Extent3d {
+                    width: item.image_size.x,
+                    height: item.image_size.y,
+                    depth_or_array_layers: 1,
+                },
+            );
+        }
+    }
+
     pub fn clear(&mut self) {
         self.items.clear();
         self.allocator.clear();
@@ -396,12 +436,7 @@ impl TextureAtlas {
 
     fn remove(&mut self, textures: &[PathBuf]) {
         for texture in textures {
-            if let Some(item) = self.items.get_mut(texture) {
-                item.total_dependants -= 1;
-                if item.total_dependants == 0 {
-                    self.items.remove(texture);
-                }
-            }
+            self.items.remove(texture);
         }
     }
 }

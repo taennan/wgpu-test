@@ -4,7 +4,9 @@ Just small experiments aimed at learning the WGPU graphics library
 
 ## TODO
 
-- Get TextureAtlasDumper working
+- Get first version of a tilemap working
+- Render text with the tilemap
+- Render coloured text with the tilemap
 
 ## NOTES
 

@@ -20,10 +20,11 @@ impl App {
         systems_pool.add(AppCloser);
         systems_pool.add(SceneLoader);
         systems_pool.add(CameraMover);
+        systems_pool.add(AtlasDumper);
         //systems_pool.add(TextureToggler);
         systems_pool.add(WindowRedrawer);
 
-        log::info!("Added systems");
+        log::info!("Added all systems");
 
         Self {
             root_state: None,

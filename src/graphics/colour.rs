@@ -11,8 +11,8 @@ pub struct ColourData {
 }
 
 impl ColourData {
-    pub fn textured(atlas_item_index: u16, atlas_item_coords: U8Vec2) -> Self {
-        Self::new(false, true, atlas_item_index, atlas_item_coords, Vec4::ZERO)
+    pub fn textured(atlas_item_index: u16) -> Self {
+        Self::new(false, true, atlas_item_index, U8Vec2::ZERO, Vec4::ZERO)
     }
 
     pub fn solid(rgba: Vec4) -> Self {
@@ -91,12 +91,12 @@ where
 {
     let value = value.into();
     let length = 32;
+    let high_filter_amount = length - end;
 
-    let low_bits_filtered = value >> start;
-    let high_bits_filtered = low_bits_filtered << (length - end);
-    let bits_shifted_to_end = high_bits_filtered >> (length - end);
+    let low_bits_filtered = (value >> start) << start;
+    let high_bits_filtered = (low_bits_filtered << high_filter_amount) >> high_filter_amount;
 
-    return bits_shifted_to_end;
+    return high_bits_filtered;
 }
 
 fn normalized_f32_to_u8(value: f32) -> u8 {
@@ -107,12 +107,32 @@ fn normalized_f32_to_u8(value: f32) -> u8 {
 mod tests {
     use super::*;
 
+    mod slice_u32 {
+        use super::*;
+
+        #[test]
+        fn it_filters_low_bits_correctly() {
+            let input: u32 = 0b1111_1111_1111;
+            let expected = 0b1111_1111_0000;
+            let actual = slice_u32(input, 4, 32);
+            assert_eq!(actual, expected);
+        }
+
+        #[test]
+        fn it_filters_high_bits_correctly() {
+            let input: u32 = 0b1111_1111_1111;
+            let expected = 0b0001_1111_1111;
+            let actual = slice_u32(input, 0, 9);
+            assert_eq!(actual, expected);
+        }
+    }
+
     mod colour_data {
         use super::*;
 
         #[test]
         fn it_initialises_metadata_correctly() {
-            let output = ColourData::textured(0, U8Vec2::ZERO);
+            let output = ColourData::textured(0);
             assert!(!output.atlas_disabled);
             assert!(output.modulate_disabled);
 

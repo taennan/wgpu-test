@@ -1,4 +1,4 @@
-use crate::graphics::types::ColourData;
+use crate::graphics::colour::ColourData;
 use bytemuck::{Pod, Zeroable};
 use glam::{UVec2, Vec2, Vec3};
 use std::mem;

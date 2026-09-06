@@ -24,6 +24,7 @@ struct VertexInput {
     @location(2) packed_colour: vec2<u32>,
     @location(3) position: vec3<f32>,
     @location(4) scale: vec2<f32>,
+    @location(5) _padding: u32,
 }
 
 struct VertexOutput {
@@ -55,10 +56,8 @@ fn vertex_position(vertex: f32, instance: f32, scale: f32, screen_dimension: u32
 
 @fragment
 fn fragment_main(input: VertexOutput) -> @location(0) vec4<f32> {
-    return vec4(1.0, 1.0, 1.0, 1.0);
     var atlas_sample_input: AtlasSampleInput;
     atlas_sample_input.packed_colour = input.packed_colour;
-    atlas_sample_input.padding = atlas_padding;
     atlas_sample_input.division_offset = input.uv;
 
     let sample = atlas_sample(atlas_sample_input);
@@ -67,7 +66,6 @@ fn fragment_main(input: VertexOutput) -> @location(0) vec4<f32> {
 
 struct AtlasSampleInput {
     packed_colour: vec2<u32>,
-    padding: u32,
     division_offset: vec2<f32>,
 }
 
@@ -76,7 +74,6 @@ fn atlas_sample(input: AtlasSampleInput) -> vec4<f32> {
 
     var atlas_uv_input: AtlasUvInput;
     atlas_uv_input.item_index = colour.atlas_item_index;
-    atlas_uv_input.padding = input.padding;
     atlas_uv_input.division_x = colour.atlas_item_coords.x;
     atlas_uv_input.division_y = colour.atlas_item_coords.y;
     atlas_uv_input.division_offset = input.division_offset;
@@ -91,7 +88,7 @@ fn atlas_sample(input: AtlasSampleInput) -> vec4<f32> {
         atlas_sample,
         blended_sample,
     );
-    let sample_index = u32(!colour.modulate_disabled) | (u32(!colour.atlas_disabled) << 1u) ;
+    let sample_index = u32(!colour.modulate_disabled) | (u32(!colour.atlas_disabled) << 1u);
 
     let sample = sample_table[sample_index];
     return sample;
@@ -99,7 +96,6 @@ fn atlas_sample(input: AtlasSampleInput) -> vec4<f32> {
 
 struct AtlasUvInput {
     item_index: u32,
-    padding: u32,
     division_x: u32,
     division_y: u32,
     division_offset: vec2<f32>,
@@ -107,11 +103,11 @@ struct AtlasUvInput {
 
 fn atlas_uv(input: AtlasUvInput) -> vec2<f32> {
     let atlas_item = atlas_items[input.item_index];
-    let padding_wh = atlas_to_uv_coords(vec2(input.padding, input.padding));
+    let padding_wh = norm_atlas_coords(vec2(atlas_padding, atlas_padding));
 
     let total_atlas_item_padding = padding_wh * vec2(f32(atlas_item.position.x + 1), f32(atlas_item.position.y + 1));
-    let atlas_item_uv = atlas_to_uv_coords(atlas_item.position) + total_atlas_item_padding;
-    let atlas_item_wh = atlas_to_uv_coords(atlas_item.size);
+    let atlas_item_uv = norm_atlas_coords(atlas_item.position) + total_atlas_item_padding;
+    let atlas_item_wh = norm_atlas_coords(atlas_item.size);
 
     let division_wh = atlas_item_wh / vec2(f32(atlas_item.divisions.x), f32(atlas_item.divisions.y));
     let division_uv = vec2<f32>(
@@ -119,10 +115,10 @@ fn atlas_uv(input: AtlasUvInput) -> vec2<f32> {
         (division_wh.y * input.division_offset.y) + (division_wh.y * f32(input.division_y))
     );
 
-    return division_uv;
+    return atlas_item_uv +  division_uv;
 }
 
-fn atlas_to_uv_coords(atlas_coords: vec2<u32>) -> vec2<f32> {
+fn norm_atlas_coords(atlas_coords: vec2<u32>) -> vec2<f32> {
     let atlas_size = textureDimensions(atlas_diffuse);
     return vec2(
         f32(atlas_coords.x) / f32(atlas_size.x),
@@ -171,10 +167,10 @@ fn colour_data_from_vec2(input: vec2<u32>) -> ColourData {
 
 fn slice_u32(value: u32, start: u32, end: u32) -> u32 {
     let length = 32u;
+    let high_filter_amount = length - end;
 
-    let low_bits_filtered = value >> start;
-    let high_bits_filtered = low_bits_filtered << (length - end);
-    let bits_shifted_to_end = high_bits_filtered >> (length - end);
+    let low_bits_filtered = (value >> start) << start;
+    let high_bits_filtered = (low_bits_filtered << high_filter_amount) >> high_filter_amount;
 
-    return bits_shifted_to_end;
+    return high_bits_filtered;
 }

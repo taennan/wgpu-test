@@ -104,11 +104,11 @@ impl MutBuffer {
 }
 
 impl MutBuffer {
-    pub fn read(&self, dest: Arc<Mutex<[u8]>>) {
+    pub fn read(&self, dest: Arc<Mutex<Vec<u8>>>) {
         self.read_then(dest, || {}, || {});
     }
 
-    pub fn read_then<F, E>(&self, dest: Arc<Mutex<[u8]>>, ok_callback: F, err_callback: E)
+    pub fn read_then<F, E>(&self, dest: Arc<Mutex<Vec<u8>>>, ok_callback: F, err_callback: E)
     where
         F: FnOnce() + WasmNotSend + 'static,
         E: FnOnce() + WasmNotSend + 'static,
@@ -120,8 +120,14 @@ impl MutBuffer {
                     .get_mapped_range(..)
                     .expect("Failed to get buffer view");
 
+                log::debug!("Will read from view of length={}", view.len());
+
                 let mut slice = dest.lock().unwrap();
-                slice.copy_from_slice(&view);
+                slice.clear();
+                slice.extend_from_slice(&view);
+
+                log::debug!("Extended dest slice to length={}", slice.len());
+
                 (ok_callback)();
             },
             err_callback,
@@ -140,14 +146,18 @@ impl MutBuffer {
 
         let inner = self.inner.clone();
         let has_mapped = self.has_mapped.clone();
+        has_mapped.store(true, Ordering::Relaxed);
+
         self.inner
             .map_async(map_mode, 0..self.inner.size(), move |buffer_result| {
                 match buffer_result {
-                    Ok(_) => ok_callback(&inner),
+                    Ok(_) => {
+                        ok_callback(&inner);
+                        inner.unmap();
+                    }
                     Err(_) => err_callback(),
                 }
 
-                inner.unmap();
                 has_mapped.store(false, Ordering::Relaxed);
             });
     }
@@ -168,8 +178,14 @@ impl MutBuffer {
         self.map_then(
             MapMode::Write,
             move |buffer| {
-                let mut view = buffer.get_mapped_range_mut(..).unwrap();
-                view.copy_from_slice(&[bytemuck::cast(*data)]);
+                let mut view = buffer
+                    .get_mapped_range_mut(..)
+                    .map_err(|err| log::error!("Failed to get mapped range of buffer, {:?}", err))
+                    .unwrap();
+
+                let data = *data;
+                let cast_data = bytemuck::bytes_of(&data);
+                view.copy_from_slice(cast_data);
                 mem::drop(view);
 
                 ok_callback();
@@ -200,6 +216,7 @@ impl MutBuffer {
             move |buffer| {
                 for slice in &slices {
                     let range = slice.start..(slice.start + slice.bytes.len() as u64);
+                    log::debug!("Will write slice range {}..{}", range.start, range.end);
                     let mut view = match buffer.get_mapped_range_mut(range) {
                         Ok(view) => view,
                         Err(err) => {
